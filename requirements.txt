@@ -1,0 +1,9 @@
+google-cloud-firestore
+google-cloud-bigquery
+google-api-core
+ipaddress
+datetime
+user_agents
+firebase_admin
+geoip2
+python-dotenv
