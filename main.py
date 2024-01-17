@@ -1,6 +1,9 @@
+import asyncio
+import aiohttp
 from google.cloud import bigquery
 from werkzeug.wrappers import Request
 from werkzeug.test import create_environ
+import requests
 import json
 import ipaddress
 from user_agents import parse
@@ -19,6 +22,48 @@ from consts import DATASET_ID, TABLE_ID, DAILY_SALT, CLIENT_ID_COOKIE_NAME
 
 initialize_app()
 
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/track")
+async def track(request):
+    # Get request data as a dictionary based on the request method
+    data = {}
+    if request.method == "GET":
+        data = request.args.to_dict()
+    elif request.method == "POST":
+        data = request.form.to_dict()
+        if not data:
+            data = request.get_json()
+    else:
+        return "Invalid request method"
+    
+    async with aiohttp.ClientSession() as session:
+        # Send POST request without immediately waiting for the response
+        response_task = asyncio.create_task(
+            session.post('http://httpbin.org/post', data={'key': 'value'})
+        )
+
+        # Print some text right after sending the request
+        print("Request sent, not waiting for the response...")
+
+        # Now wait for the response and print it
+        response = await response_task
+        data = await response.text()
+        print("Response received:")
+        print(data)
+
+    # Extract abbreviated parameter values
+    client_id = data.get("c", request.cookies.get(CLIENT_ID_COOKIE_NAME, None))
+    # TODO 
+    # call_cf('/geo_bq', data)
+    requests.post('CF_URL/process', data)
+
+@app.get("/process")
+async def route2():
+    return {"message": "This is Route 2"}
+
 def flatten(d, parent_key='', sep='_'):
     items = {}
     for k, v in d.items():
@@ -28,10 +73,6 @@ def flatten(d, parent_key='', sep='_'):
         else:
             items[new_key] = v
     return items
-
-
-# TODO pseudo code optimize - make app routes and make cloud function call itself
-# '/cookies', '/geo_bq'
 
 
 def get_geoip_data(ip_address):
@@ -67,8 +108,9 @@ def get_geoip_data(ip_address):
         except Exception as e:
             print(f"Error retrieving data: {e}")
             return None
+        
 
-def track(request):
+def track_old(request):
     # Get request data as a dictionary based on the request method
     data = {}
     if request.method == "GET":
