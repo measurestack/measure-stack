@@ -4,27 +4,77 @@ from google.cloud import bigquery
 from werkzeug.wrappers import Request
 from werkzeug.test import create_environ
 import requests
+from fastapi.templating import Jinja2Templates
 import json
 import ipaddress
 from user_agents import parse
+from pathlib import Path
 from dotenv import load_dotenv
 import os
+from tracking import track_requests
+from flask import Flask
 
 # Load environment variables from .env file (only for local testing, otherwise take env variables directly)
 load_dotenv()
 
+app = Flask(__name__)
 
 import hashlib
 import datetime
-from firebase_admin import firestore, credentials, initialize_app
+from firebase_admin import firestore, initialize_app
 from geoip2.webservice import Client
 from consts import DATASET_ID, TABLE_ID, DAILY_SALT, CLIENT_ID_COOKIE_NAME
 
 initialize_app()
 
-from fastapi import FastAPI
+jstemplates = Jinja2Templates(directory = Path(__file__).resolve().parent/'js')
 
-app = FastAPI()
+
+CF_URL = 'cloud_function_url'
+
+# delivers measure.js library
+@app.get("/measure.js")
+async def get_measure(request: Request):
+        return jstemplates.TemplateResponse("measure.js", {"request": request, "endpoint": request.url_for('track')})
+
+# consent & cookie handling
+# and data forwarding to middleware 
+# TODO this needds to be a separate function here instead of middleware (core/tracking.py)
+@app.route("/events", methods=["GET", "POST"])
+async def track(
+    request:Request, 
+    ):
+    form_data={}
+    json_data={}
+    if request.method == "POST":
+        form_data = await request.form()
+        try:
+            json_data = await request.json()
+        except:
+            pass
+    request.state.tracking_data = {**form_data, **json_data, **request.query_params}
+    response = JSONResponse(content={"message": "ok"})
+    if request.state.tracking_data.get('en','') == 'consent':
+        id = request.state.tracking_data.get('p', {}).get('id') if isinstance(request.state.tracking_data.get('p'), dict) else None
+        if id == True and request.cookies.get(CLIENT_ID_COOKIE_NAME, None) is None:
+            clid=str(uuid.uuid4())
+            response.set_cookie(CLIENT_ID_COOKIE_NAME,clid,max_age=60*60*24*365 ,domain='.'+'.'.join(request.url.hostname.split('.')[-2:]) if not request.url.hostname.replace('.', '').isdigit() else request.url.hostname)
+            response.set_cookie(HASH_COOKIE_NAME,get_hash(request),max_age=60*60*24*365 ,domain='.'+'.'.join(request.url.hostname.split('.')[-2:]) if not request.url.hostname.replace('.', '').isdigit() else request.url.hostname)
+            request.state.tracking_data['c']=clid
+        if id == False:
+             response.delete_cookie(CLIENT_ID_COOKIE_NAME)
+             response.delete_cookie(HASH_COOKIE_NAME)
+    return response
+
+@app.get('/')
+async def main():
+    track_requests()
+
+    async with aiohttp.ClientSession() as session:
+    # Send POST request without immediately waiting for the response
+    response_task = asyncio.create_task(
+        session.post(f'{CF_URL}/track', data={'key': 'value'})
+    )
 
 @app.get("/track")
 async def track(request):
