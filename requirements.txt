@@ -7,3 +7,4 @@ user_agents
 firebase_admin
 geoip2
 python-dotenv
+flask
