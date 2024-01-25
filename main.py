@@ -11,7 +11,7 @@ from werkzeug import datastructures
 
 # Third-Party Imports
 from firebase_admin import firestore, initialize_app
-from flask import abort, Flask, jsonify, render_template, request
+from flask import abort, Flask, jsonify, make_response, render_template, request
 from geoip2.webservice import Client
 from google.cloud import bigquery
 import jwt
@@ -42,23 +42,24 @@ def handle_consent_and_cookies():
     json_data={}
     if request.method == "POST":
         form_data = request.form.to_dict()
-        try:
-            json_data = request.get_json()
-        except:
-            pass
-    request.state.tracking_data = {**form_data, **json_data, **request.args.to_dict()}
+        json_data = request.get_json(silent=True) or {}
 
-    response = jsonify({"message": "ok"})
-    if request.state.tracking_data.get('en','') == 'consent':
-        id = request.state.tracking_data.get('p', {}).get('id') if isinstance(request.state.tracking_data.get('p'), dict) else None
-        if id and not request.cookies.get(CLIENT_ID_COOKIE_NAME):
-            clid=str(uuid.uuid4())
-            response.set_cookie(CLIENT_ID_COOKIE_NAME,clid,max_age=60*60*24*365 ,domain='.'+'.'.join(request.url.hostname.split('.')[-2:]) if not request.url.hostname.replace('.', '').isdigit() else request.url.hostname)
-            response.set_cookie(HASH_COOKIE_NAME,get_hash(request),max_age=60*60*24*365 ,domain='.'+'.'.join(request.url.hostname.split('.')[-2:]) if not request.url.hostname.replace('.', '').isdigit() else request.url.hostname)
-            request.state.tracking_data['c']=clid
+    tracking_data = {**form_data, **json_data, **request.args.to_dict()}
+
+    response = make_response(jsonify({"message": "ok"}))
+    
+    # Handle consent-related logic
+    if tracking_data.get('en', '') == 'consent':
+        id = tracking_data.get('p', {}).get('id') if isinstance(tracking_data.get('p'), dict) else None
+        if id == True and not request.cookies.get(CLIENT_ID_COOKIE_NAME):
+            clid = str(uuid.uuid4())
+            domain = '.' + '.'.join(request.host.split('.')[-2:]) if not request.host.replace('.', '').isdigit() else request.host
+            response.set_cookie(CLIENT_ID_COOKIE_NAME, clid, max_age=60*60*24*365, domain=domain)
+            # response.set_cookie(HASH_COOKIE_NAME, get_hash(request), max_age=60*60*24*365, domain=domain) # Uncomment after defining get_hash
+            tracking_data['c'] = clid
         if id == False:
-             response.delete_cookie(CLIENT_ID_COOKIE_NAME)
-             response.delete_cookie(HASH_COOKIE_NAME)
+            response.delete_cookie(CLIENT_ID_COOKIE_NAME)
+            response.delete_cookie(HASH_COOKIE_NAME)
 
     ts_1 = datetime.datetime.now()
     # TODO: request.get(f'{CF_URL}/track') w/ timeout 1ms
