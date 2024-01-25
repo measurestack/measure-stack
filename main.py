@@ -6,19 +6,28 @@ import uuid
 from pathlib import Path
 import hashlib
 import ipaddress
-import logging
+import logging as log
 from werkzeug import datastructures
 
 # Third-Party Imports
 from firebase_admin import firestore, initialize_app
 from flask import abort, Flask, jsonify, make_response, render_template, request
 from geoip2.webservice import Client
-from google.cloud import bigquery
+from google.cloud import bigquery, logging
 import jwt
 from user_agents import parse
 
 # Local Imports
 from consts import *
+
+# Instantiates a client
+log_client = log.Client()
+
+# Retrieves a Cloud Logging handler based on the environment
+# you're running in and integrates the handler with the
+# Python logging module. By default this captures all logs
+# at INFO level and higher
+log_client.setup_logging()
 
 initialize_app()
 
@@ -72,37 +81,21 @@ def handle_consent_and_cookies():
 # NOTE watch out here; request is global, so making another request to CF/track will use the new request object
 # hence using "req" here onwards
 def tracking(tracking_data, req, response, ts_0, ts_1):
-
-    event_name = type(response).__name__.replace("Response", "") if response else "Unknown"
-    if "content-type" in response.headers:
-        event_name = response.headers.get("content-type", "").split(";")[0]
-    else:
-        event_name = type(response).__name__ if response else "Unknown"
-
     
-    is_event = True if tracking_data and tracking_data.get('en', None) else False
-    logging.info(str(is_event))
-    logging.info(str(tracking_data))
+    log.info(str(tracking_data))
     hash_value = get_hash(req)
     data = tracking_data or {}
 
-    event_type = data.get("et", "event" if is_event else "request")
-    event_name = data.get("en", None if is_event else event_name)
-    parameters = {
-        **data.get("p", {}),
-        **({} if is_event else {
-            "request_duration_ms": (ts_1-ts_0).total_seconds() * 1000,
-            "method": req.method,
-            "status_code": response.status_code
-        })
-    }
+    event_type = data.get("et", "event")
+    event_name = data.get("en", None)
+    parameters = data.get("p", {})
     user_agent = data.get("ua", None) or req.headers.get("user-agent", None)
-    url = data.get("url", None if is_event else str(req.url))
+    url = data.get("url", None)
     referrer = data.get("r",req.headers.get("Referer", None))
     client_id = data.get("c",req.cookies.get(CLIENT_ID_COOKIE_NAME, None))
     hash_value = data.get("h", hash_value)
     client_host = req.remote_addr or req.headers.get('X-Forwarded-For')
-    user_id = data.get("u", user_id)
+    user_id = data.get("u", None) # will come from the proxy
     ab_test = data.get("ab", []) or []
 
     try:
@@ -116,7 +109,7 @@ def tracking(tracking_data, req, response, ts_0, ts_1):
             ip_segments=(str(ipaddress.ip_address(client_host)).split(':'))[:4]
             client_host = ':'.join(ip_segments) + '::'
     except Exception as e:
-        logging.error(f"failed IP detection {client_host}")
+        log.error(f"failed IP detection {client_host}")
 
     geo_info = get_geoip_data(client_host)
 
@@ -169,10 +162,10 @@ def get_geoip_data(ip_address):
     # Try to retrieve the record from Firestore
     doc = geoip_collection.document(ip_address).get()
     if doc.exists:
-        logging.info("IP data found in Firestore")
+        log.info("IP data found in Firestore")
         return doc.to_dict()
     else:
-        logging.info("IP data not found, querying geoip2...")
+        log.info("IP data not found, querying geoip2...")
         # Use your geoip2 account credentials
         client = Client(account_id=os.getenv('GEOIP_ACCOUNT_ID'), license_key=os.getenv('GEOIP_API_KEY'), host='geolite.info')
 
@@ -192,7 +185,7 @@ def get_geoip_data(ip_address):
             geoip_collection.document(ip_address).set(data)
             return data
         except Exception as e:
-            logging.error(f"Error retrieving data: {e}")
+            log.error(f"Error retrieving data: {e}")
             return None
         
 
