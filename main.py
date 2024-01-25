@@ -29,7 +29,7 @@ log_client = logging.Client()
 # at INFO level and higher
 log_client.setup_logging()
 
-global request
+# global request
 request = None
 
 initialize_app()
@@ -239,13 +239,14 @@ def main(req):
             headers=headers, 
             data=req.data
         ):
+            request = req
             try:
                 rv = app.preprocess_request()
                 if rv is None:
                     rv = app.dispatch_request()
             except Exception as e:
                 rv = app.handle_user_exception(e)
-            request = req
+            
             response = app.make_response(rv)
             origin = req.headers.get('Origin') 
             response = app.process_response(response)
