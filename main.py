@@ -6,6 +6,7 @@ import uuid
 from pathlib import Path
 import hashlib
 import ipaddress
+import logging
 from werkzeug import datastructures
 
 # Third-Party Imports
@@ -85,6 +86,8 @@ def tracking(tracking_data, req, response, ts_0, ts_1):
 
     
     is_event = True if tracking_data and tracking_data.get('en', None) else False
+    logging.info(is_event)
+    logging.info(tracking_data)
     hash_value = get_hash(req)
     data = tracking_data or {}
 
@@ -118,7 +121,7 @@ def tracking(tracking_data, req, response, ts_0, ts_1):
             ip_segments=(str(ipaddress.ip_address(client_host)).split(':'))[:4]
             client_host = ':'.join(ip_segments) + '::'
     except Exception as e:
-        print(f"failed IP detection {client_host}")
+        logging.error(f"failed IP detection {client_host}")
 
     geo_info = get_geoip_data(client_host)
 
@@ -171,10 +174,10 @@ def get_geoip_data(ip_address):
     # Try to retrieve the record from Firestore
     doc = geoip_collection.document(ip_address).get()
     if doc.exists:
-        print("IP data found in Firestore")
+        logging.info("IP data found in Firestore")
         return doc.to_dict()
     else:
-        print("IP data not found, querying geoip2...")
+        logging.info("IP data not found, querying geoip2...")
         # Use your geoip2 account credentials
         client = Client(account_id=os.getenv('GEOIP_ACCOUNT_ID'), license_key=os.getenv('GEOIP_API_KEY'), host='geolite.info')
 
@@ -194,7 +197,7 @@ def get_geoip_data(ip_address):
             geoip_collection.document(ip_address).set(data)
             return data
         except Exception as e:
-            print(f"Error retrieving data: {e}")
+            logging.error(f"Error retrieving data: {e}")
             return None
         
 
@@ -254,10 +257,10 @@ def get_current_user(req):
         user_info = decode_and_validate_jwt_access_token(access_token, SECRET_KEY)
         return user_info
     except jwt.ExpiredSignatureError:
-        print("Access Token expired.")
+        logging.error("Access Token expired.")
         abort(401, description="Access Token expired")
     except jwt.InvalidTokenError:
-        print("Access Token invalid")
+        logging.error("Access Token invalid")
         abort(401, description="Access Token invalid")
 
 
