@@ -1,41 +1,37 @@
-from google.cloud import bigquery
-from werkzeug.wrappers import Request
-from fastapi.templating import Jinja2Templates
-import json
-import ipaddress
-from user_agents import parse
-from pathlib import Path
-from dotenv import load_dotenv
-import os
-from flask import Flask
-
-# Load environment variables from .env file (only for local testing, otherwise take env variables directly)
-load_dotenv()
-
-app = Flask(__name__)
-
-import hashlib
-import datetime
-from firebase_admin import firestore, initialize_app
-from geoip2.webservice import Client
 from consts import DATASET_ID, TABLE_ID, DAILY_SALT, CLIENT_ID_COOKIE_NAME
+import datetime
+from fastapi.templating import Jinja2Templates
+from firebase_admin import firestore, initialize_app
+from flask import Flask
+from geoip2.webservice import Client
+from google.cloud import bigquery
+import hashlib
+import ipaddress
+import json
+import os
+from pathlib import Path
+from user_agents import parse
+from werkzeug.wrappers import Request
 
 initialize_app()
 
 jstemplates = Jinja2Templates(directory = Path(__file__).resolve().parent/'js')
-
-
 CF_URL = 'cloud_function_url'
 
+app = Flask(__name__)
+
+# NOTE for app routing
+# https://stackoverflow.com/questions/53488766/using-flask-routing-in-gcp-function
+
 # delivers measure.js library
-@app.get("/measure.js")
-async def get_measure(request: Request):
+@app.get('/measure.js')
+def get_measure(request: Request):
         return jstemplates.TemplateResponse("measure.js", {"request": request, "endpoint": request.url_for('track')})
 
 # consent & cookie handling
 # initating tracking (forward_data)
-@app.route("/events", methods=["GET", "POST"])
-async def track(
+@app.route('/events', methods=["GET", "POST"])
+def track(
     request:Request, 
     ):
     ts_0 = datetime.datetime.now()
@@ -63,13 +59,16 @@ async def track(
 
     ts_1 = datetime.datetime.now()
     # this processes the tracking
+    # TODO
+    # request.get('') mit timeout 1ms
     process_tracking(request, response, ts_0, ts_1)
 
     return response
 
 
 # this forwards data to the tracking cloud function
-async def process_tracking(request, response, ts_0, ts_1):
+app.route('/track')
+def process_tracking(request, response, ts_0, ts_1):
     try:
         user = get_current_user(request)
         user_id = get_user_id(user)
@@ -82,35 +81,29 @@ async def process_tracking(request, response, ts_0, ts_1):
     else:
         event_name = type(response).__name__ if response else "Unknown"
 
-    hash_value = get_hash(request)
+    
     is_event = True if request.state.tracking_data and request.state.tracking_data.get('en', None) else False
-
+    hash_value = get_hash(request)
     data = request.state.tracking_data or {}
 
-    event_type = data.get("et", "event" if is_event else "request"),
-    event_name = data.get("en", None if is_event else event_name ),
-    parameters = {**data.get("p", {}), **({} if is_event else {
-                "request_duration_ms": (ts_1-ts_0).total_seconds() * 1000,
-                "method": request.method,
-                "status_code": response.status_code,
-            })},
-    user_agent = data.get("ua", None) or request.headers.get("user-agent", None),
-    url = data.get("url", None if is_event else str(request.url)),
-    referrer = data.get("r",request.headers.get("Referer", None)),
-    client_id = data.get("c",request.cookies.get(CLIENT_ID_COOKIE_NAME, None)),
-    hash_value = data.get("h", hash_value),
-    user_id = data.get("u", user_id),
-    client_host = request.client.host or request.headers.get('X-Forwarded-For'),
+    event_type = data.get("et", "event" if is_event else "request")
+    event_name = data.get("en", None if is_event else event_name)
+    parameters = {
+        **data.get("p", {}),
+        **({} if is_event else {
+            "request_duration_ms": (ts_1-ts_0).total_seconds() * 1000,
+            "method": request.method,
+            "status_code": response.status_code
+        })
+    }
+    user_agent = data.get("ua", None) or request.headers.get("user-agent", None)
+    url = data.get("url", None if is_event else str(request.url))
+    referrer = data.get("r",request.headers.get("Referer", None))
+    client_id = data.get("c",request.cookies.get(CLIENT_ID_COOKIE_NAME, None))
+    hash_value = data.get("h", hash_value)
+    client_host = request.client.host or request.headers.get('X-Forwarded-For')
+    user_id = data.get("u", user_id)
     ab_test = data.get("ab", None)
-
-
-    if not hash_value:
-        hash_str = (
-            client_host
-            + str(request.headers.get("user-agent"))
-            + DAILY_SALT
-        )
-        hash_value = hashlib.sha256(hash_str.encode()).hexdigest()
 
     try:
         if ipaddress.ip_address(client_host).version == 4:
@@ -150,7 +143,7 @@ async def process_tracking(request, response, ts_0, ts_1):
 
     # Create the data dictionary with long form column names
     data = {
-        "timestamp": timestamp,
+        "timestamp": datetime.datetime.now(),
         "event_type": event_type,
         "event_name": event_name,
         "parameters": json.dumps(parameters),
@@ -234,6 +227,47 @@ def load_to_bq(data):
         raise Exception(f"Error inserting rows into BigQuery: {errors}")
     else:
         return "Data inserted successfully into BigQuery"
+    
+# from core.auth    
+def get_current_user(request: Request):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    access_token_from_cookie = request.cookies.get(
+        config.ACCESS_TOKEN_COOKIE_NAME
+    )
+
+    authorization_header = request.headers.get("Authorization")
+    access_token_from_header = (
+        authorization_header.replace("Bearer ", "")
+        if authorization_header
+        else None
+    )
+
+    if access_token_from_cookie:
+        access_token = access_token_from_cookie
+    elif access_token_from_header:
+        access_token = access_token_from_header
+    else:
+        raise credentials_exception
+
+    try:
+        user_info = decode_and_validate_jwt_access_token(
+            access_token, config.SECRET_KEY
+        ).user_info
+        return user_info
+    except AccessTokenExpiredError:
+        print("Access Token expired.")
+        raise credentials_exception
+    except AccessTokenInvalidError:
+        print("Access Token invalid")
+        raise credentials_exception
+
+
+def get_user_id(user: AccessTokenUserInfo) -> str:
+    return user.user_id
 
 ## TODO not sure if this is needed
 # # Check if the script is executed directly
