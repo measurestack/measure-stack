@@ -285,5 +285,7 @@ def main(request):
             except Exception as e:
                 rv = app.handle_user_exception(e)
             response = app.make_response(rv)
-            response.headers.add('Access-Control-Allow-Origin', '*')
+            origin = request.headers.get('Origin') 
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
             return app.process_response(response)
