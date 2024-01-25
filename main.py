@@ -61,15 +61,15 @@ async def track(
              response.delete_cookie(CLIENT_ID_COOKIE_NAME)
              response.delete_cookie(HASH_COOKIE_NAME)
 
-    # this calls the substituted middleware
     ts_1 = datetime.datetime.now()
-    forward_data(request, response, ts_0, ts_1)
+    # this processes the tracking
+    process_tracking(request, response, ts_0, ts_1)
 
     return response
 
 
 # this forwards data to the tracking cloud function
-async def forward_data(request, response, ts_0, ts_1):
+async def process_tracking(request, response, ts_0, ts_1):
     try:
         user = get_current_user(request)
         user_id = get_user_id(user)
@@ -86,62 +86,23 @@ async def forward_data(request, response, ts_0, ts_1):
     is_event = True if request.state.tracking_data and request.state.tracking_data.get('en', None) else False
 
     data = request.state.tracking_data or {}
-    data = {
-        "ts": data.get("ts", datetime.datetime.now().isoformat()),
-        "et": data.get("et", "event" if is_event else "request"),
-        "en": data.get("en", None if is_event else event_name ),
-        "p": {**data.get("p", {}), **({} if is_event else {
-            "request_duration_ms": (ts_1-ts_0).total_seconds() * 1000,
-            "method": request.method,
-            "status_code": response.status_code,
-           })},
-        "ua": data.get("ua", None) or request.headers.get("user-agent", None),
-        "url": data.get("url", None if is_event else str(request.url)),
-        "r": data.get("r",request.headers.get("Referer", None)),
-        "c": data.get("c",request.cookies.get(CLIENT_ID_COOKIE_NAME, None)),
-        "h": data.get("h", hash_value),
-        "u": data.get("u", user_id),
-        "ch": request.client.host,
-        "ab": data.get("ab", None)
-    }
-    try:
-        process_tracking(data)
-    except Exception as e:
-        logger.exception("Failed sending to tracker: ("+str(e)+") ", exc_info=e)
 
-        # NOTE what does this stuff do??
-        return
-    """
-    table_id = f"{DATASET_ID}.{TABLE_ID}"
-    client.insert_rows_json(table_id, [insert_data])
-    job_config = bigquery.LoadJobConfig()
-    job_config.source_format = bigquery.SourceFormat.NEWLINE_DELIMITED_JSON
-        # Start load job
-    return
-    load_job = client.load_table_from_json(
-        [insert_data], table_id, job_config=job_config
-    )
-    print("Starting job {}".format(load_job.job_id))
+    event_type = data.get("et", "event" if is_event else "request"),
+    event_name = data.get("en", None if is_event else event_name ),
+    parameters = {**data.get("p", {}), **({} if is_event else {
+                "request_duration_ms": (ts_1-ts_0).total_seconds() * 1000,
+                "method": request.method,
+                "status_code": response.status_code,
+            })},
+    user_agent = data.get("ua", None) or request.headers.get("user-agent", None),
+    url = data.get("url", None if is_event else str(request.url)),
+    referrer = data.get("r",request.headers.get("Referer", None)),
+    client_id = data.get("c",request.cookies.get(CLIENT_ID_COOKIE_NAME, None)),
+    hash_value = data.get("h", hash_value),
+    user_id = data.get("u", user_id),
+    client_host = request.client.host or request.headers.get('X-Forwarded-For'),
+    ab_test = data.get("ab", None)
 
-    # Waits for the job to complete.
-    load_job.result()  
-    """
-
-# this is the tracking function from the cloud function
-def process_tracking(data):
-    # Extract abbreviated parameter values
-    timestamp = data.get("ts", datetime.datetime.now().isoformat())
-    event_type = data.get("et", "event")
-    event_name = data.get("en", None)
-    parameters = data.get("p", {})
-    user_agent = data.get("ua", None) or request.headers.get("user-agent", None)
-    url = data.get("url", None)
-    referrer = data.get("r", request.headers.get("Referer", None))
-    client_id = data.get("c", request.cookies.get(CLIENT_ID_COOKIE_NAME, None))
-    ab_test = data.get("ab", []) or []
-    hash_value = data.get("h", None)
-    user_id = data.get("u", None)
-    client_host = data.get("ch", request.headers.get('X-Forwarded-For'))
 
     if not hash_value:
         hash_str = (
@@ -204,16 +165,7 @@ def process_tracking(data):
         "location": location,
     }
 
-    # Insert data into BigQuery
-    # TODO make this a function
-    client = bigquery.Client()
-    table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
-    errors = client.insert_rows_json(table_ref, [data])
-
-    if errors:
-        raise Exception(f"Error inserting rows into BigQuery: {errors}")
-    else:
-        return "Data inserted successfully into BigQuery"
+    load_to_bq(data)
 
 
 def get_geoip_data(ip_address):
@@ -271,6 +223,17 @@ def flatten(d, parent_key='', sep='_'):
             items[new_key] = v
     return items
 
+
+def load_to_bq(data):
+    # Insert data into BigQuery
+    client = bigquery.Client()
+    table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
+    errors = client.insert_rows_json(table_ref, [data])
+
+    if errors:
+        raise Exception(f"Error inserting rows into BigQuery: {errors}")
+    else:
+        return "Data inserted successfully into BigQuery"
 
 ## TODO not sure if this is needed
 # # Check if the script is executed directly
