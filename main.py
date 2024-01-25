@@ -72,11 +72,6 @@ def handle_consent_and_cookies():
 # NOTE watch out here; request is global, so making another request to CF/track will use the new request object
 # hence using "req" here onwards
 def tracking(tracking_data, req, response, ts_0, ts_1):
-    try:
-        user = get_current_user(req)
-        user_id = get_user_id(user)
-    except:
-        user_id = None
 
     event_name = type(response).__name__.replace("Response", "") if response else "Unknown"
     if "content-type" in response.headers:
@@ -86,8 +81,8 @@ def tracking(tracking_data, req, response, ts_0, ts_1):
 
     
     is_event = True if tracking_data and tracking_data.get('en', None) else False
-    logging.info(is_event)
-    logging.info(tracking_data)
+    logging.info(str(is_event))
+    logging.info(str(tracking_data))
     hash_value = get_hash(req)
     data = tracking_data or {}
 
@@ -232,40 +227,6 @@ def load_to_bq(data):
         raise Exception(f"Error inserting rows into BigQuery: {errors}")
     else:
         return "Data inserted successfully into BigQuery"
-    
-
-def decode_and_validate_jwt_access_token(access_token, secret_key):
-    # Your existing logic to decode and validate the JWT token
-    decoded_token = jwt.decode(access_token, secret_key, algorithms=["HS256"])
-    return decoded_token  # or however you get the user_info from the token
-
-
-def get_current_user(req):
-    access_token_from_cookie = req.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
-    authorization_header = req.headers.get("Authorization")
-    access_token_from_header = (
-        authorization_header.replace("Bearer ", "")
-        if authorization_header
-        else None
-    )
-    access_token = access_token_from_cookie or access_token_from_header
-
-    if not access_token:
-        abort(401, description="Could not validate credentials")  # Aborts with a 401 error
-
-    try:
-        user_info = decode_and_validate_jwt_access_token(access_token, SECRET_KEY)
-        return user_info
-    except jwt.ExpiredSignatureError:
-        logging.error("Access Token expired.")
-        abort(401, description="Access Token expired")
-    except jwt.InvalidTokenError:
-        logging.error("Access Token invalid")
-        abort(401, description="Access Token invalid")
-
-
-def get_user_id(user) -> str:
-    return user.user_id
 
 
 def main(request):
