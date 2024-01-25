@@ -6,7 +6,6 @@ import uuid
 from pathlib import Path
 import hashlib
 import ipaddress
-from werkzeug.wrappers import Request
 from werkzeug import datastructures
 
 # Third-Party Imports
@@ -29,7 +28,7 @@ app = Flask(__name__)
 
 # delivers measure.js library
 @app.get('/measure.js')
-def get_measure(request: Request):
+def get_measure():
     app.template_folder = Path(__file__).resolve().parent / 'js'
     return render_template("measure.js", endpoint=request.url_for('track')) # TODO check if this url thingy works
 
@@ -55,7 +54,7 @@ def handle_consent_and_cookies():
             clid = str(uuid.uuid4())
             domain = '.' + '.'.join(request.host.split('.')[-2:]) if not request.host.replace('.', '').isdigit() else request.host
             response.set_cookie(CLIENT_ID_COOKIE_NAME, clid, max_age=60*60*24*365, domain=domain)
-            # response.set_cookie(HASH_COOKIE_NAME, get_hash(request), max_age=60*60*24*365, domain=domain) # Uncomment after defining get_hash
+            response.set_cookie(HASH_COOKIE_NAME, get_hash(request), max_age=60*60*24*365, domain=domain)
             tracking_data['c'] = clid
         if id == False:
             response.delete_cookie(CLIENT_ID_COOKIE_NAME)
@@ -63,15 +62,17 @@ def handle_consent_and_cookies():
 
     ts_1 = datetime.datetime.now()
     # TODO: request.get(f'{CF_URL}/track') w/ timeout 1ms
-    tracking(request, response, ts_0, ts_1)
+    tracking(tracking_data, request, response, ts_0, ts_1)
 
     return response
 
 
 # app.route('/track')
-def tracking(request, response, ts_0, ts_1):
+# NOTE watch out here; request is global, so making another request to CF/track will use the new request object
+# hence using "req" here onwards
+def tracking(tracking_data, req, response, ts_0, ts_1):
     try:
-        user = get_current_user(request)
+        user = get_current_user(req)
         user_id = get_user_id(user)
     except:
         user_id = None
@@ -83,9 +84,9 @@ def tracking(request, response, ts_0, ts_1):
         event_name = type(response).__name__ if response else "Unknown"
 
     
-    is_event = True if request.state.tracking_data and request.state.tracking_data.get('en', None) else False
-    hash_value = get_hash(request)
-    data = request.state.tracking_data or {}
+    is_event = True if tracking_data and tracking_data.get('en', None) else False
+    hash_value = get_hash(req)
+    data = tracking_data or {}
 
     event_type = data.get("et", "event" if is_event else "request")
     event_name = data.get("en", None if is_event else event_name)
@@ -93,16 +94,16 @@ def tracking(request, response, ts_0, ts_1):
         **data.get("p", {}),
         **({} if is_event else {
             "request_duration_ms": (ts_1-ts_0).total_seconds() * 1000,
-            "method": request.method,
+            "method": req.method,
             "status_code": response.status_code
         })
     }
-    user_agent = data.get("ua", None) or request.headers.get("user-agent", None)
-    url = data.get("url", None if is_event else str(request.url))
-    referrer = data.get("r",request.headers.get("Referer", None))
-    client_id = data.get("c",request.cookies.get(CLIENT_ID_COOKIE_NAME, None))
+    user_agent = data.get("ua", None) or req.headers.get("user-agent", None)
+    url = data.get("url", None if is_event else str(req.url))
+    referrer = data.get("r",req.headers.get("Referer", None))
+    client_id = data.get("c",req.cookies.get(CLIENT_ID_COOKIE_NAME, None))
     hash_value = data.get("h", hash_value)
-    client_host = request.client.host or request.headers.get('X-Forwarded-For')
+    client_host = req.client.host or req.headers.get('X-Forwarded-For')
     user_id = data.get("u", user_id)
     ab_test = data.get("ab", None)
 
@@ -197,10 +198,10 @@ def get_geoip_data(ip_address):
             return None
         
 
-def get_hash(request):
+def get_hash(req):
     hash_str = (
-        request.client.host
-        + str(request.headers.get("user-agent"))
+        req.client.host
+        + str(req.headers.get("user-agent"))
         + DAILY_SALT
     )
     hash_value = hashlib.sha256(hash_str.encode()).hexdigest()
@@ -236,9 +237,9 @@ def decode_and_validate_jwt_access_token(access_token, secret_key):
     return decoded_token  # or however you get the user_info from the token
 
 
-def get_current_user(request):
-    access_token_from_cookie = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
-    authorization_header = request.headers.get("Authorization")
+def get_current_user(req):
+    access_token_from_cookie = req.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+    authorization_header = req.headers.get("Authorization")
     access_token_from_header = (
         authorization_header.replace("Bearer ", "")
         if authorization_header
