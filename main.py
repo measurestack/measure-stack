@@ -33,12 +33,12 @@ async def get_measure(request: Request):
         return jstemplates.TemplateResponse("measure.js", {"request": request, "endpoint": request.url_for('track')})
 
 # consent & cookie handling
-# and data forwarding to middleware 
-# TODO "middleware" needs to be a separate function here instead see below and (core/tracking.py)
+# initating tracking (forward_data)
 @app.route("/events", methods=["GET", "POST"])
 async def track(
     request:Request, 
     ):
+    ts_0 = datetime.datetime.now()
     form_data={}
     json_data={}
     if request.method == "POST":
@@ -48,8 +48,6 @@ async def track(
         except:
             pass
     request.state.tracking_data = {**form_data, **json_data, **request.query_params}
-
-
 
     response = JSONResponse(content={"message": "ok"})
     if request.state.tracking_data.get('en','') == 'consent':
@@ -62,32 +60,16 @@ async def track(
         if id == False:
              response.delete_cookie(CLIENT_ID_COOKIE_NAME)
              response.delete_cookie(HASH_COOKIE_NAME)
+
+    # this calls the substituted middleware
+    ts_1 = datetime.datetime.now()
+    forward_data(request, response, ts_0, ts_1)
+
     return response
-    # this needs to call the substituted middleware
 
-
-# TODO middleware to be a proper functions block (from core/tracking.py)
-# TODO instead of a request this should work with the response from /events
-def get_hash(request):
-    hash_str = (
-        request.client.host
-        + str(request.headers.get("user-agent"))
-        + DAILY_SALT
-    )
-    hash_value = hashlib.sha256(hash_str.encode()).hexdigest()
-    return hash_value
-
-async def track_requests(request, call_next):
-    timestamp = datetime.datetime.now()
-    request.state.tracking_data = None
-    response: Response = await call_next(request)
-    timestamp2 = datetime.datetime.now()
-    # this background task should be triggered after the response was send to browser, hopefully request and repsonse objects are still available
-    response.background = BackgroundTask(forward_data, request, response, timestamp, timestamp2) 
-    return response
 
 # this forwards data to the tracking cloud function
-async def forward_data(request, response, timestamp, timestamp2):
+async def forward_data(request, response, ts_0, ts_1):
     try:
         user = get_current_user(request)
         user_id = get_user_id(user)
@@ -109,7 +91,7 @@ async def forward_data(request, response, timestamp, timestamp2):
         "et": data.get("et", "event" if is_event else "request"),
         "en": data.get("en", None if is_event else event_name ),
         "p": {**data.get("p", {}), **({} if is_event else {
-            "request_duration_ms": (timestamp2-timestamp).total_seconds() * 1000,
+            "request_duration_ms": (ts_1-ts_0).total_seconds() * 1000,
             "method": request.method,
             "status_code": response.status_code,
            })},
@@ -123,15 +105,11 @@ async def forward_data(request, response, timestamp, timestamp2):
         "ab": data.get("ab", None)
     }
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{config.TRACKING_ENDPOINT}", json=data)
-            if response.status_code != 200:
-                logger.error(f"Error sending tracking data. Status code: {response.status_code}, Response: {response.text}")
-
-            return response
+        process_tracking(data)
     except Exception as e:
         logger.exception("Failed sending to tracker: ("+str(e)+") ", exc_info=e)
 
+        # NOTE what does this stuff do??
         return
     """
     table_id = f"{DATASET_ID}.{TABLE_ID}"
@@ -149,65 +127,8 @@ async def forward_data(request, response, timestamp, timestamp2):
     load_job.result()  
     """
 
-
-# TODO old cloud function part
-def flatten(d, parent_key='', sep='_'):
-    items = {}
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, dict):
-            items.update(flatten(v, new_key, sep=sep))
-        else:
-            items[new_key] = v
-    return items
-
-def get_geoip_data(ip_address):
-    db = firestore.client()
-    # Reference to the geoip collection
-    geoip_collection = db.collection('geoip')
-
-    # Try to retrieve the record from Firestore
-    doc = geoip_collection.document(ip_address).get()
-    if doc.exists:
-        print("IP data found in Firestore")
-        return doc.to_dict()
-    else:
-        print("IP data not found, querying geoip2...")
-        # Use your geoip2 account credentials
-        client = Client(account_id=os.getenv('GEOIP_ACCOUNT_ID'), license_key=os.getenv('GEOIP_API_KEY'), host='geolite.info')
-
-        try:
-            # Get data from geoip2
-            response = client.city(ip_address)
-            data = {
-                'ip_mask': ip_address,
-                'continent': response.continent.name,
-                'country': response.country.name,
-                'country_code': response.country.iso_code,
-                'city': response.city.name,
-                'updated_at': datetime.datetime.now()
-            }
-
-            # Store the data in Firestore
-            geoip_collection.document(ip_address).set(data)
-            return data
-        except Exception as e:
-            print(f"Error retrieving data: {e}")
-            return None
-
 # this is the tracking function from the cloud function
-def track(request):
-    # Get request data as a dictionary based on the request method
-    data = {}
-    if request.method == "GET":
-        data = request.args.to_dict()
-    elif request.method == "POST":
-        data = request.form.to_dict()
-        if not data:
-            data = request.get_json()
-    else:
-        return "Invalid request method"
-
+def process_tracking(data):
     # Extract abbreviated parameter values
     timestamp = data.get("ts", datetime.datetime.now().isoformat())
     event_type = data.get("et", "event")
@@ -284,6 +205,7 @@ def track(request):
     }
 
     # Insert data into BigQuery
+    # TODO make this a function
     client = bigquery.Client()
     table_ref = client.dataset(DATASET_ID).table(TABLE_ID)
     errors = client.insert_rows_json(table_ref, [data])
@@ -292,6 +214,63 @@ def track(request):
         raise Exception(f"Error inserting rows into BigQuery: {errors}")
     else:
         return "Data inserted successfully into BigQuery"
+
+
+def get_geoip_data(ip_address):
+    db = firestore.client()
+    # Reference to the geoip collection
+    geoip_collection = db.collection('geoip')
+
+    # Try to retrieve the record from Firestore
+    doc = geoip_collection.document(ip_address).get()
+    if doc.exists:
+        print("IP data found in Firestore")
+        return doc.to_dict()
+    else:
+        print("IP data not found, querying geoip2...")
+        # Use your geoip2 account credentials
+        client = Client(account_id=os.getenv('GEOIP_ACCOUNT_ID'), license_key=os.getenv('GEOIP_API_KEY'), host='geolite.info')
+
+        try:
+            # Get data from geoip2
+            response = client.city(ip_address)
+            data = {
+                'ip_mask': ip_address,
+                'continent': response.continent.name,
+                'country': response.country.name,
+                'country_code': response.country.iso_code,
+                'city': response.city.name,
+                'updated_at': datetime.datetime.now()
+            }
+
+            # Store the data in Firestore
+            geoip_collection.document(ip_address).set(data)
+            return data
+        except Exception as e:
+            print(f"Error retrieving data: {e}")
+            return None
+        
+
+def get_hash(request):
+    hash_str = (
+        request.client.host
+        + str(request.headers.get("user-agent"))
+        + DAILY_SALT
+    )
+    hash_value = hashlib.sha256(hash_str.encode()).hexdigest()
+    return hash_value
+
+
+def flatten(d, parent_key='', sep='_'):
+    items = {}
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.update(flatten(v, new_key, sep=sep))
+        else:
+            items[new_key] = v
+    return items
+
 
 ## TODO not sure if this is needed
 # # Check if the script is executed directly
