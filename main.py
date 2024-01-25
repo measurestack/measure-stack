@@ -105,7 +105,7 @@ def tracking(tracking_data, req, response, ts_0, ts_1):
     hash_value = data.get("h", hash_value)
     client_host = req.remote_addr or req.headers.get('X-Forwarded-For')
     user_id = data.get("u", user_id)
-    ab_test = data.get("ab", None)
+    ab_test = data.get("ab", []) or []
 
     try:
         if ipaddress.ip_address(client_host).version == 4:
