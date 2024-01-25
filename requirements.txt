@@ -1,10 +1,11 @@
+datetime
+firebase_admin
+flask
+geoip2
+google-api-core
 google-cloud-firestore
 google-cloud-bigquery
-google-api-core
 ipaddress
-datetime
-user_agents
-firebase_admin
-geoip2
 python-dotenv
-flask
+uuid
+user_agents

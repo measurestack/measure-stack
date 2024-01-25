@@ -1,8 +1,8 @@
-from consts import DATASET_ID, TABLE_ID, DAILY_SALT, CLIENT_ID_COOKIE_NAME
+from consts import *
 import datetime
 from fastapi.templating import Jinja2Templates
 from firebase_admin import firestore, initialize_app
-from flask import Flask
+from flask import Flask, jsonify
 from geoip2.webservice import Client
 from google.cloud import bigquery
 import hashlib
@@ -10,13 +10,13 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+import uuid
 from user_agents import parse
 from werkzeug.wrappers import Request
 
 initialize_app()
 
 jstemplates = Jinja2Templates(directory = Path(__file__).resolve().parent/'js')
-CF_URL = 'cloud_function_url'
 
 app = Flask(__name__)
 
@@ -31,21 +31,19 @@ def get_measure(request: Request):
 # consent & cookie handling
 # initating tracking (forward_data)
 @app.route('/events', methods=["GET", "POST"])
-def track(
-    request:Request, 
-    ):
+def track(request:Request,):
     ts_0 = datetime.datetime.now()
     form_data={}
     json_data={}
     if request.method == "POST":
-        form_data = await request.form()
+        form_data = request.form()
         try:
-            json_data = await request.json()
+            json_data = request.json()
         except:
             pass
     request.state.tracking_data = {**form_data, **json_data, **request.query_params}
 
-    response = JSONResponse(content={"message": "ok"})
+    response = jsonify({"message": "ok"})
     if request.state.tracking_data.get('en','') == 'consent':
         id = request.state.tracking_data.get('p', {}).get('id') if isinstance(request.state.tracking_data.get('p'), dict) else None
         if id == True and request.cookies.get(CLIENT_ID_COOKIE_NAME, None) is None:
@@ -67,7 +65,7 @@ def track(
 
 
 # this forwards data to the tracking cloud function
-app.route('/track')
+# app.route('/track')
 def process_tracking(request, response, ts_0, ts_1):
     try:
         user = get_current_user(request)
@@ -235,9 +233,7 @@ def get_current_user(request: Request):
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    access_token_from_cookie = request.cookies.get(
-        config.ACCESS_TOKEN_COOKIE_NAME
-    )
+    access_token_from_cookie = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
 
     authorization_header = request.headers.get("Authorization")
     access_token_from_header = (
