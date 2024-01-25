@@ -145,7 +145,7 @@ def tracking(tracking_data, req, response, ts_0, ts_1):
 
     # Create the data dictionary with long form column names
     data = {
-        "timestamp": datetime.datetime.now(),
+        "timestamp": ts_0.isoformat(),
         "event_type": event_type,
         "event_name": event_name,
         "parameters": json.dumps(parameters),
