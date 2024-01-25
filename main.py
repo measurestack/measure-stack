@@ -286,6 +286,11 @@ def main(request):
                 rv = app.handle_user_exception(e)
             response = app.make_response(rv)
             origin = request.headers.get('Origin') 
+            response = app.process_response(response)
+
             response.headers.add('Access-Control-Allow-Origin', origin)
             response.headers.add('Access-Control-Allow-Credentials', 'true')
-            return app.process_response(response)
+            response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            
+            return response
