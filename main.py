@@ -54,6 +54,7 @@ def handle_consent_and_cookies():
         json_data = request.get_json(silent=True) or {}
 
     tracking_data = {**form_data, **json_data, **request.args.to_dict()}
+    log.info(tracking_data)
 
     response = make_response(jsonify({"message": "ok"}))
     
