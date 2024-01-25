@@ -48,6 +48,9 @@ async def track(
         except:
             pass
     request.state.tracking_data = {**form_data, **json_data, **request.query_params}
+
+
+
     response = JSONResponse(content={"message": "ok"})
     if request.state.tracking_data.get('en','') == 'consent':
         id = request.state.tracking_data.get('p', {}).get('id') if isinstance(request.state.tracking_data.get('p'), dict) else None
@@ -60,9 +63,11 @@ async def track(
              response.delete_cookie(CLIENT_ID_COOKIE_NAME)
              response.delete_cookie(HASH_COOKIE_NAME)
     return response
+    # this needs to call the substituted middleware
 
 
 # TODO middleware to be a proper functions block (from core/tracking.py)
+# TODO instead of a request this should work with the response from /events
 def get_hash(request):
     hash_str = (
         request.client.host
@@ -77,9 +82,11 @@ async def track_requests(request, call_next):
     request.state.tracking_data = None
     response: Response = await call_next(request)
     timestamp2 = datetime.datetime.now()
-    response.background = BackgroundTask(forward_data, request, response, timestamp, timestamp2) # this background task should be triggered after the response was send to browser, hopefully request and repsonse objects are still available
+    # this background task should be triggered after the response was send to browser, hopefully request and repsonse objects are still available
+    response.background = BackgroundTask(forward_data, request, response, timestamp, timestamp2) 
     return response
 
+# this forwards data to the tracking cloud function
 async def forward_data(request, response, timestamp, timestamp2):
     try:
         user = get_current_user(request)
@@ -142,42 +149,6 @@ async def forward_data(request, response, timestamp, timestamp2):
     load_job.result()  
     """
 
-# this will return a variant for a test with name test_name. 
-# the variants dict will contain an entry for each variant and an int weight. 
-# The weights determine the propabilities of the variant. so {"default":3,"variant":1} will return variant in 25% of the cases
-# You must provide the same test_name AND variant dict to get consistent results
-# this is not random. It will determine the variant based on the user hash which is combined of IP + user_agent + daily salt
-# this should still be rather equally distirbuted except for super hashes which belong to a lot of users with the same IP
-# including the test name into the hashing will ensure that there is no correlation between variants of different tests
-def get_variant(request, test_name, variants):
-    # Check if test_name contains only a-z, 0-9, _, and -
-    if not re.match("^[a-z0-9_-]+$", test_name):
-        raise HTTPException(status_code=400, detail="Invalid test_name format. Use only a-z, 0-9, _, and -")
-
-    hash_value = request.cookies.get(HASH_COOKIE_NAME, "") or get_hash(request)
-
-    # Concatenate the hash with the test_name
-    concatenated_string = hash_value + test_name
-    
-    # Convert the concatenated string into a number using a hashing function
-    #hashed_value = int(hashlib.sha256(concatenated_string.encode()).hexdigest(), 16)
-    hashed_value = int.from_bytes(hashlib.sha256(concatenated_string.encode()).digest(), 'big')
-        
-    # Map the hashed value to the range [1, n]
-    n = sum(variants.values())
-    mapped_value = (hashed_value % n) + 1
-    
-    # Determine the variant based on the mapped value
-    cumulative_weight = 0
-    sortd = sorted(variants.items())
-    for variant, weight in sortd:
-        cumulative_weight += weight
-        if mapped_value <= cumulative_weight:
-            # log to tracker
-            request.state.tracking_data = {**(request.state.tracking_data or {}), "ab": (request.state.tracking_data or {}).get("ab", []) + [{"name": test_name, "variant": variant, "def": json.dumps(dict(sortd), separators=(',', ':'))}]}
-
-            return variant
-
 
 # TODO old cloud function part
 def flatten(d, parent_key='', sep='_'):
@@ -224,6 +195,7 @@ def get_geoip_data(ip_address):
             print(f"Error retrieving data: {e}")
             return None
 
+# this is the tracking function from the cloud function
 def track(request):
     # Get request data as a dictionary based on the request method
     data = {}
