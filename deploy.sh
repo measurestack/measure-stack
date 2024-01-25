@@ -16,7 +16,7 @@ gcloud functions deploy $TRACKER_FUNCTION \
     --allow-unauthenticated \
     --memory 256MB \
     --project $PROJECT_ID \
-    --entry-point track \
+    --entry-point main \
     --source ./ \
     --region $LOCATION \
     --set-env-vars GEOIP_ACCOUNT_ID=871440 \
