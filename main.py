@@ -11,7 +11,7 @@ from werkzeug import datastructures
 
 # Third-Party Imports
 from firebase_admin import firestore, initialize_app
-from flask import abort, Flask, jsonify, make_response, render_template, request
+from flask import abort, Flask, jsonify, make_response, render_template
 from geoip2.webservice import Client
 from google.cloud import bigquery, logging
 import jwt
@@ -28,6 +28,9 @@ log_client = logging.Client()
 # Python logging module. By default this captures all logs
 # at INFO level and higher
 log_client.setup_logging()
+
+global request
+request = None
 
 initialize_app()
 
@@ -223,18 +226,18 @@ def load_to_bq(data):
         return "Data inserted successfully into BigQuery"
 
 
-def main(request):
+def main(req):
     with app.app_context():
         headers = datastructures.Headers()
-        for key, value in request.headers.items():
+        for key, value in req.headers.items():
             headers.add(key, value)
         with app.test_request_context(
-            method=request.method, 
-            base_url=request.base_url, 
-            path=request.path, 
-            query_string=request.query_string, 
+            method=req.method, 
+            base_url=req.base_url, 
+            path=req.path, 
+            query_string=req.query_string, 
             headers=headers, 
-            data=request.data
+            data=req.data
         ):
             try:
                 rv = app.preprocess_request()
@@ -242,8 +245,9 @@ def main(request):
                     rv = app.dispatch_request()
             except Exception as e:
                 rv = app.handle_user_exception(e)
+            request = req
             response = app.make_response(rv)
-            origin = request.headers.get('Origin') 
+            origin = req.headers.get('Origin') 
             response = app.process_response(response)
 
             response.headers.add('Access-Control-Allow-Origin', origin)
