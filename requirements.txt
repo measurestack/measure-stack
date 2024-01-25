@@ -6,6 +6,7 @@ geoip2
 google-api-core
 google-cloud-firestore
 google-cloud-bigquery
+google-cloud-logging
 ipaddress
 python-dotenv
 uuid

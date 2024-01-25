@@ -21,7 +21,7 @@ from user_agents import parse
 from consts import *
 
 # Instantiates a client
-log_client = log.Client()
+log_client = logging.Client()
 
 # Retrieves a Cloud Logging handler based on the environment
 # you're running in and integrates the handler with the
