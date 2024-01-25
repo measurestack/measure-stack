@@ -1,6 +1,7 @@
 datetime
 firebase_admin
 flask
+functions-framework
 geoip2
 google-api-core
 google-cloud-firestore

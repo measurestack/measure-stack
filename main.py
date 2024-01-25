@@ -7,10 +7,11 @@ from pathlib import Path
 import hashlib
 import ipaddress
 from werkzeug.wrappers import Request
+from werkzeug import datastructures
 
 # Third-Party Imports
 from firebase_admin import firestore, initialize_app
-from flask import abort, Flask, jsonify, render_template
+from flask import abort, Flask, jsonify, render_template, request
 from geoip2.webservice import Client
 from google.cloud import bigquery
 import jwt
@@ -30,22 +31,22 @@ app = Flask(__name__)
 @app.get('/measure.js')
 def get_measure(request: Request):
     app.template_folder = Path(__file__).resolve().parent / 'js'
-    return render_template("measure.js", endpoint=request.url_for('track'))
+    return render_template("measure.js", endpoint=request.url_for('track')) # TODO check if this url thingy works
 
 # consent & cookie handling
 # initating tracking (forward_data)
 @app.route('/events', methods=["GET", "POST"])
-def handle_consent_cookies(request:Request,):
+def handle_consent_and_cookies():
     ts_0 = datetime.datetime.now()
     form_data={}
     json_data={}
     if request.method == "POST":
-        form_data = request.form()
+        form_data = request.form.to_dict()
         try:
-            json_data = request.json()
+            json_data = request.get_json()
         except:
             pass
-    request.state.tracking_data = {**form_data, **json_data, **request.query_params}
+    request.state.tracking_data = {**form_data, **json_data, **request.args.to_dict()}
 
     response = jsonify({"message": "ok"})
     if request.state.tracking_data.get('en','') == 'consent':
@@ -227,10 +228,12 @@ def load_to_bq(data):
     else:
         return "Data inserted successfully into BigQuery"
     
+
 def decode_and_validate_jwt_access_token(access_token, secret_key):
     # Your existing logic to decode and validate the JWT token
     decoded_token = jwt.decode(access_token, secret_key, algorithms=["HS256"])
     return decoded_token  # or however you get the user_info from the token
+
 
 def get_current_user(request):
     access_token_from_cookie = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
@@ -259,10 +262,25 @@ def get_current_user(request):
 def get_user_id(user) -> str:
     return user.user_id
 
-## TODO not sure if this is needed
-# # Check if the script is executed directly
-# if __name__ == '__main__':
-#     # For local testing, call the export_firestore_to_bigquery function directly
-#     # Create a WSGI environment for a GET request to '/path'
-#     environ = create_environ(path='/path', method='GET',query_string={'ch': '102.129.204.182'},headers=[('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36 Fake-Request')])
-#     track(Request(environ))
+
+def main(request):
+    with app.app_context():
+        headers = datastructures.Headers()
+        for key, value in request.headers.items():
+            headers.add(key, value)
+        with app.test_request_context(
+            method=request.method, 
+            base_url=request.base_url, 
+            path=request.path, 
+            query_string=request.query_string, 
+            headers=headers, 
+            data=request.data
+        ):
+            try:
+                rv = app.preprocess_request()
+                if rv is None:
+                    rv = app.dispatch_request()
+            except Exception as e:
+                rv = app.handle_user_exception(e)
+            response = app.make_response(rv)
+            return app.process_response(response)
