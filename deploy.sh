@@ -3,15 +3,8 @@
 # Shared variables, Note: use `source /dev/stdin` on command line and copy those variables in to have them defined on commandline to execute statements individually 
 NAME=tracker
 TRACKER_FUNCTION="${NAME}"
-FUNCTION_NAME_2="${NAME}-gtm"
-IP_NAME="${NAME}-ip"
-MAP_NAME="${NAME}-map"
-PROXY_NAME="${NAME}-proxy"
-RULE_NAME="${NAME}-rule"
-CERT_NAME="${NAME}-cert"
 PROJECT_ID=measure-js
 LOCATION=europe-west1
-DOMAIN_NAME=t.ga3-exporter.com
 
 # 0. Allow secret manager access of default service account
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" --role='roles/secretmanager.secretAccessor'

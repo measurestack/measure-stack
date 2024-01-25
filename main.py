@@ -30,7 +30,7 @@ app = Flask(__name__)
 @app.get('/measure.js')
 def get_measure():
     app.template_folder = Path(__file__).resolve().parent / 'js'
-    return render_template("measure.js", endpoint=request.url_for('track')) # TODO check if this url thingy works
+    return render_template("measure.js")
 
 # consent & cookie handling
 # initating tracking (forward_data)
@@ -103,7 +103,7 @@ def tracking(tracking_data, req, response, ts_0, ts_1):
     referrer = data.get("r",req.headers.get("Referer", None))
     client_id = data.get("c",req.cookies.get(CLIENT_ID_COOKIE_NAME, None))
     hash_value = data.get("h", hash_value)
-    client_host = req.client.host or req.headers.get('X-Forwarded-For')
+    client_host = req.remote_addr or req.headers.get('X-Forwarded-For')
     user_id = data.get("u", user_id)
     ab_test = data.get("ab", None)
 
@@ -200,7 +200,7 @@ def get_geoip_data(ip_address):
 
 def get_hash(req):
     hash_str = (
-        req.client.host
+        str(req.remote_addr)
         + str(req.headers.get("user-agent"))
         + DAILY_SALT
     )
