@@ -10,9 +10,10 @@ from werkzeug.wrappers import Request
 
 # Third-Party Imports
 from firebase_admin import firestore, initialize_app
-from flask import Flask, jsonify, render_template
+from flask import abort, Flask, jsonify, render_template
 from geoip2.webservice import Client
 from google.cloud import bigquery
+import jwt
 from user_agents import parse
 
 # Local Imports
@@ -34,7 +35,7 @@ def get_measure(request: Request):
 # consent & cookie handling
 # initating tracking (forward_data)
 @app.route('/events', methods=["GET", "POST"])
-def track(request:Request,):
+def handle_consent_cookies(request:Request,):
     ts_0 = datetime.datetime.now()
     form_data={}
     json_data={}
@@ -59,17 +60,14 @@ def track(request:Request,):
              response.delete_cookie(HASH_COOKIE_NAME)
 
     ts_1 = datetime.datetime.now()
-    # this processes the tracking
-    # TODO
-    # request.get('') mit timeout 1ms
-    process_tracking(request, response, ts_0, ts_1)
+    # TODO: request.get(f'{CF_URL}/track') w/ timeout 1ms
+    tracking(request, response, ts_0, ts_1)
 
     return response
 
 
-# this forwards data to the tracking cloud function
 # app.route('/track')
-def process_tracking(request, response, ts_0, ts_1):
+def tracking(request, response, ts_0, ts_1):
     try:
         user = get_current_user(request)
         user_id = get_user_id(user)
@@ -229,43 +227,36 @@ def load_to_bq(data):
     else:
         return "Data inserted successfully into BigQuery"
     
-# from core.auth    
-def get_current_user(request: Request):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    access_token_from_cookie = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+def decode_and_validate_jwt_access_token(access_token, secret_key):
+    # Your existing logic to decode and validate the JWT token
+    decoded_token = jwt.decode(access_token, secret_key, algorithms=["HS256"])
+    return decoded_token  # or however you get the user_info from the token
 
+def get_current_user(request):
+    access_token_from_cookie = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
     authorization_header = request.headers.get("Authorization")
     access_token_from_header = (
         authorization_header.replace("Bearer ", "")
         if authorization_header
         else None
     )
+    access_token = access_token_from_cookie or access_token_from_header
 
-    if access_token_from_cookie:
-        access_token = access_token_from_cookie
-    elif access_token_from_header:
-        access_token = access_token_from_header
-    else:
-        raise credentials_exception
+    if not access_token:
+        abort(401, description="Could not validate credentials")  # Aborts with a 401 error
 
     try:
-        user_info = decode_and_validate_jwt_access_token(
-            access_token, config.SECRET_KEY
-        ).user_info
+        user_info = decode_and_validate_jwt_access_token(access_token, SECRET_KEY)
         return user_info
-    except AccessTokenExpiredError:
+    except jwt.ExpiredSignatureError:
         print("Access Token expired.")
-        raise credentials_exception
-    except AccessTokenInvalidError:
+        abort(401, description="Access Token expired")
+    except jwt.InvalidTokenError:
         print("Access Token invalid")
-        raise credentials_exception
+        abort(401, description="Access Token invalid")
 
 
-def get_user_id(user: AccessTokenUserInfo) -> str:
+def get_user_id(user) -> str:
     return user.user_id
 
 ## TODO not sure if this is needed
