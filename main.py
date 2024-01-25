@@ -1,22 +1,24 @@
-from consts import *
+# Standard Library Imports
 import datetime
-from fastapi.templating import Jinja2Templates
-from firebase_admin import firestore, initialize_app
-from flask import Flask, jsonify
-from geoip2.webservice import Client
-from google.cloud import bigquery
-import hashlib
-import ipaddress
 import json
 import os
-from pathlib import Path
 import uuid
-from user_agents import parse
+from pathlib import Path
+import hashlib
+import ipaddress
 from werkzeug.wrappers import Request
 
-initialize_app()
+# Third-Party Imports
+from firebase_admin import firestore, initialize_app
+from flask import Flask, jsonify, render_template
+from geoip2.webservice import Client
+from google.cloud import bigquery
+from user_agents import parse
 
-jstemplates = Jinja2Templates(directory = Path(__file__).resolve().parent/'js')
+# Local Imports
+from consts import *
+
+initialize_app()
 
 app = Flask(__name__)
 
@@ -26,7 +28,8 @@ app = Flask(__name__)
 # delivers measure.js library
 @app.get('/measure.js')
 def get_measure(request: Request):
-        return jstemplates.TemplateResponse("measure.js", {"request": request, "endpoint": request.url_for('track')})
+    app.template_folder = Path(__file__).resolve().parent / 'js'
+    return render_template("measure.js", endpoint=request.url_for('track'))
 
 # consent & cookie handling
 # initating tracking (forward_data)
@@ -46,7 +49,7 @@ def track(request:Request,):
     response = jsonify({"message": "ok"})
     if request.state.tracking_data.get('en','') == 'consent':
         id = request.state.tracking_data.get('p', {}).get('id') if isinstance(request.state.tracking_data.get('p'), dict) else None
-        if id == True and request.cookies.get(CLIENT_ID_COOKIE_NAME, None) is None:
+        if id and not request.cookies.get(CLIENT_ID_COOKIE_NAME):
             clid=str(uuid.uuid4())
             response.set_cookie(CLIENT_ID_COOKIE_NAME,clid,max_age=60*60*24*365 ,domain='.'+'.'.join(request.url.hostname.split('.')[-2:]) if not request.url.hostname.replace('.', '').isdigit() else request.url.hostname)
             response.set_cookie(HASH_COOKIE_NAME,get_hash(request),max_age=60*60*24*365 ,domain='.'+'.'.join(request.url.hostname.split('.')[-2:]) if not request.url.hostname.replace('.', '').isdigit() else request.url.hostname)
