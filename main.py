@@ -227,6 +227,8 @@ def load_to_bq(data):
 
 
 def main(req):
+
+    # TODO write this as if else instead of app routing
     with app.app_context():
         headers = datastructures.Headers()
         for key, value in req.headers.items():
