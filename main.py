@@ -1,13 +1,14 @@
 # Standard Library Imports
 import datetime
-import json
-import os
-import uuid
-from pathlib import Path
 import hashlib
 import ipaddress
+import json
 import logging as log
+import os
+from pathlib import Path
+import requests
 from werkzeug import datastructures
+import uuid
 
 # Third-Party Imports
 from firebase_admin import firestore, initialize_app
@@ -29,26 +30,42 @@ log_client = logging.Client()
 # at INFO level and higher
 log_client.setup_logging()
 
-# global request
-request = None
 
 initialize_app()
 
-app = Flask(__name__)
 
-# NOTE for app routing
-# https://stackoverflow.com/questions/53488766/using-flask-routing-in-gcp-function
+def main(request):
+    request_json = request.get_json(silent=True)
+    request_args = request.args
 
+    if request.path == '/events':
+        response = handle_consent_and_cookies(request_json)
+    elif request.path == '/upload':
+        response = track(request_json)
+    else:
+        response = "Unsupported path"
+
+    origin = request.headers.get('Origin') 
+    response.headers.add('Access-Control-Allow-Origin', origin)
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')    
+
+    return response
+
+    
+# route /measure.js
 # delivers measure.js library
-@app.get('/measure.js')
-def get_measure():
-    app.template_folder = Path(__file__).resolve().parent / 'js'
-    return render_template("measure.js")
+# TODO
+# def get_measure():
+#     app.template_folder = Path(__file__).resolve().parent / 'js'
+#     return render_template("measure.js")
 
+
+# route '/events'
 # consent & cookie handling
 # initating tracking (forward_data)
-@app.route('/events', methods=["GET", "POST"])
-def handle_consent_and_cookies():
+def handle_consent_and_cookies(request):
     ts_0 = datetime.datetime.now()
     form_data={}
     json_data={}
@@ -75,16 +92,19 @@ def handle_consent_and_cookies():
             response.delete_cookie(HASH_COOKIE_NAME)
 
     ts_1 = datetime.datetime.now()
-    # TODO: request.get(f'{CF_URL}/track') w/ timeout 1ms
-    tracking(tracking_data, request, response, ts_0, ts_1)
+    try: 
+        # ignore_response = requests.post(f"{API_GATEWAY_URL}/upload", json=params, timeout=0.01)
+        track(tracking_data, request, response, ts_0, ts_1)
+    except requests.exceptions.ReadTimeout:
+        pass
 
     return response
 
 
-# app.route('/track')
+# route /track
 # NOTE watch out here; request is global, so making another request to CF/track will use the new request object
 # hence using "req" here onwards
-def tracking(tracking_data, req, response, ts_0, ts_1):
+def track(tracking_data, req, response, ts_0, ts_1):
     
     log.info(str(tracking_data))
     hash_value = get_hash(req)
@@ -224,38 +244,3 @@ def load_to_bq(data):
         raise Exception(f"Error inserting rows into BigQuery: {errors}")
     else:
         return "Data inserted successfully into BigQuery"
-
-
-def main(req):
-
-    # TODO write this as if else instead of app routing
-    with app.app_context():
-        headers = datastructures.Headers()
-        for key, value in req.headers.items():
-            headers.add(key, value)
-        with app.test_request_context(
-            method=req.method, 
-            base_url=req.base_url, 
-            path=req.path, 
-            query_string=req.query_string, 
-            headers=headers, 
-            data=req.data
-        ):
-            request = req
-            try:
-                rv = app.preprocess_request()
-                if rv is None:
-                    rv = app.dispatch_request()
-            except Exception as e:
-                rv = app.handle_user_exception(e)
-            
-            response = app.make_response(rv)
-            origin = req.headers.get('Origin') 
-            response = app.process_response(response)
-
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            
-            return response
