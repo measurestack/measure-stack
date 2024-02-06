@@ -67,7 +67,8 @@ def main(request):
 # consent & cookie handling
 # initating tracking (forward_data)
 def handle_consent_and_cookies(request):
-    log.info("Received request: " + json.dumps(request))
+    log.info("Received request:")
+    log.info(handle_request(request))
     ts_0 = datetime.datetime.now()
     form_data={}
     json_data={}
@@ -107,7 +108,8 @@ def handle_consent_and_cookies(request):
 # NOTE watch out here; request is global, so making another request to CF/track will use the new request object
 # hence using "req" here onwards
 def track(tracking_data, req, response, ts_0, ts_1):
-    log.info("Received request: " + json.dumps(req))
+    log.info("Received request:")
+    log.info(str(req))
     log.info(str(tracking_data))
     hash_value = get_hash(req)
     data = tracking_data or {}
@@ -120,7 +122,7 @@ def track(tracking_data, req, response, ts_0, ts_1):
     referrer = data.get("r",req.headers.get("Referer", None))
     client_id = data.get("c",req.cookies.get(CLIENT_ID_COOKIE_NAME, None))
     hash_value = data.get("h", hash_value)
-    client_host = req.remote_addr or req.headers.get('X-Forwarded-For')
+    client_host = req.headers.get('X-Forwarded-For') # req.remote_addr or req.headers.get('X-Forwarded-For') # changed bc always gives '169.254.1.0'
     user_id = data.get("u", None) # will come from the proxy
     ab_test = data.get("ab", []) or []
 
@@ -246,3 +248,16 @@ def load_to_bq(data):
         raise Exception(f"Error inserting rows into BigQuery: {errors}")
     else:
         return "Data inserted successfully into BigQuery"
+
+
+def handle_request(request) -> json:
+    request_json = {
+        "method": request.method,
+        "url": request.url,
+        "headers": dict(request.headers),
+        "remote_address": request.remote_addr,
+        "cookies": request.cookies,
+        "data": request.get_data(as_text=True),
+        # "json": request.json
+    }
+    return request_json
