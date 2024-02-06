@@ -7,12 +7,11 @@ import logging as log
 import os
 from pathlib import Path
 import requests
-from werkzeug import datastructures
 import uuid
 
 # Third-Party Imports
 from firebase_admin import firestore, initialize_app
-from flask import abort, Flask, jsonify, make_response, render_template
+from flask import jsonify, make_response
 from geoip2.webservice import Client
 from google.cloud import bigquery, logging
 import jwt
@@ -35,9 +34,11 @@ initialize_app()
 
 
 def main(request):
+    
     request_json = request.get_json(silent=True)
     request_args = request.args
 
+    log.info(request.path)
     if request.path == '/events':
         response = handle_consent_and_cookies(request_json)
     elif request.path == '/upload':
@@ -66,6 +67,7 @@ def main(request):
 # consent & cookie handling
 # initating tracking (forward_data)
 def handle_consent_and_cookies(request):
+    log.info("Received request: " + json.dumps(request))
     ts_0 = datetime.datetime.now()
     form_data={}
     json_data={}
@@ -105,7 +107,7 @@ def handle_consent_and_cookies(request):
 # NOTE watch out here; request is global, so making another request to CF/track will use the new request object
 # hence using "req" here onwards
 def track(tracking_data, req, response, ts_0, ts_1):
-    
+    log.info("Received request: " + json.dumps(req))
     log.info(str(tracking_data))
     hash_value = get_hash(req)
     data = tracking_data or {}
