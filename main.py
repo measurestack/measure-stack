@@ -40,9 +40,9 @@ def main(request):
 
     log.info(request.path)
     if request.path == '/events':
-        response = handle_consent_and_cookies(request_json)
+        response = handle_consent_and_cookies(request)
     elif request.path == '/upload':
-        response = track(request_json)
+        response = track(request)
     else:
         response = "Unsupported path"
 
