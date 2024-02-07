@@ -34,9 +34,6 @@ initialize_app()
 
 
 def main(request):
-    
-    request_json = request.get_json(silent=True)
-    request_args = request.args
 
     log.info(request.path)
     if request.path == '/events':
@@ -88,7 +85,7 @@ def handle_consent_and_cookies(request):
         # id = tracking_data.get('p', {}).get('id') if isinstance(tracking_data.get('p'), dict) else None
         # NOTE manual override
         id = True
-        if id == True and not request.cookies.get(CLIENT_ID_COOKIE_NAME):
+        if id == True: # and not request.cookies.get(CLIENT_ID_COOKIE_NAME):
             clid = str(uuid.uuid4())
             domain = '.' + '.'.join(request.host.split('.')[-2:]) if not request.host.replace('.', '').isdigit() else request.host
             response.set_cookie(CLIENT_ID_COOKIE_NAME, clid, max_age=60*60*24*365, domain=domain)
@@ -99,11 +96,11 @@ def handle_consent_and_cookies(request):
             response.delete_cookie(HASH_COOKIE_NAME)
 
     ts_1 = datetime.datetime.now()
-    try: 
-        # ignore_response = requests.post(f"{API_GATEWAY_URL}/upload", json=params, timeout=0.01)
-        track(tracking_data, request, response, ts_0, ts_1)
-    except requests.exceptions.ReadTimeout:
-        pass
+    # try: 
+    #     # ignore_response = requests.post(f"{CF_URL}/track", json=params, timeout=0.01)
+    #     track(tracking_data, request, response, ts_0, ts_1)
+    # except requests.exceptions.ReadTimeout:
+    #     pass
 
     return response
 
