@@ -82,8 +82,12 @@ def handle_consent_and_cookies(request):
     response = make_response(jsonify({"message": "ok"}))
     
     # Handle consent-related logic
-    if tracking_data.get('en', '') == 'consent':
-        id = tracking_data.get('p', {}).get('id') if isinstance(tracking_data.get('p'), dict) else None
+    # if tracking_data.get('en', '') == 'consent':
+    # NOTE manual override
+    if True: 
+        # id = tracking_data.get('p', {}).get('id') if isinstance(tracking_data.get('p'), dict) else None
+        # NOTE manual override
+        id = True
         if id == True and not request.cookies.get(CLIENT_ID_COOKIE_NAME):
             clid = str(uuid.uuid4())
             domain = '.' + '.'.join(request.host.split('.')[-2:]) if not request.host.replace('.', '').isdigit() else request.host
