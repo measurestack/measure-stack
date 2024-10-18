@@ -1,0 +1,25 @@
+{
+  "name": "measure-js-gcf",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "debug": "functions-framework --port=8087 --source=infrastructure/google-cloudfunctions --target=main --debug"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "latest",
+    "@google-cloud/firestore": "latest",
+    "@google-cloud/functions-framework": "latest",
+    "@google-cloud/logging": "latest",
+    "@maxmind/geoip2-node": "latest",
+    "cookie-parser": "latest",
+    "dotenv": "latest",
+    "firebase-admin": "latest",
+    "useragent": "latest",
+    "uuid": "latest",
+    "hono": "latest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "tbd",
+  "description": ""
+}

@@ -1,0 +1,25 @@
+{
+  "name": "measure-bun",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "dependencies": {
+    "elysia": "latest",
+    "@google-cloud/bigquery": "latest",
+    "@google-cloud/firestore": "latest",
+    "@google-cloud/functions-framework": "latest",
+    "@google-cloud/logging": "latest",
+    "@maxmind/geoip2-node": "latest",
+    "cookie-parser": "latest",
+    "dotenv": "latest",
+    "firebase-admin": "latest",
+    "useragent": "latest",
+    "uuid": "latest",
+    "hono": "latest"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "module": "src/index.js"
+}
