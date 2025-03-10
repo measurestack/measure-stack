@@ -1,13 +1,17 @@
 const { Firestore } = require('@google-cloud/firestore');
-const WebServiceClient = require('@maxmind/geoip2-node').WebServiceClient;
+const { WebServiceClient } = require("@maxmind/geoip2-node");
+
 const crypto = require('crypto');
 const { isIPv4, isIPv6 } = require('net');
 const firestore = new Firestore();
 
 // Initialize the MaxMind GeoIP2 WebServiceClient
 // Replace '1234' and 'licenseKey' with your actual account ID and license key
-const geoClient = new WebServiceClient(process.env.GEO_ACCOUNT, process.env.GEO_KEY, {host: 'geolite.info'});
-
+const geoClient = new WebServiceClient(
+    process.env.GEO_ACCOUNT,
+    process.env.GEO_KEY,
+    {host: 'geolite.info'}
+  );
 
 async function getGeoIPData(ipAddress) {
     const geoipCollection = firestore.collection('geoip');
@@ -28,10 +32,12 @@ async function getGeoIPData(ipAddress) {
                 updated_at: new Date()
             };
             await geoipCollection.doc(ipAddress).set(data);
+            console.log(data)
             return data;
         }
     } catch (error) {
-        //log.write(log.entry({ resource: { type: 'global' } }, `Error retrieving GeoIP data: ${error}`));
+        console.error("GeoIP lookup failed:", error);
+          //log.write(log.entry({ resource: { type: 'global' } }, `Error retrieving GeoIP data: ${error}`));
         return null;
     }
 }

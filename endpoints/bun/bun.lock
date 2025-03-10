@@ -8,7 +8,7 @@
         "@google-cloud/firestore": "latest",
         "@google-cloud/functions-framework": "latest",
         "@google-cloud/logging": "latest",
-        "@maxmind/geoip2-node": "latest",
+        "@maxmind/geoip2-node": "^6.0.0",
         "cookie-parser": "latest",
         "dotenv": "latest",
         "elysia": "latest",

@@ -5,18 +5,18 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "elysia": "latest",
     "@google-cloud/bigquery": "latest",
     "@google-cloud/firestore": "latest",
     "@google-cloud/functions-framework": "latest",
     "@google-cloud/logging": "latest",
-    "@maxmind/geoip2-node": "latest",
+    "@maxmind/geoip2-node": "^6.0.0",
     "cookie-parser": "latest",
     "dotenv": "latest",
+    "elysia": "latest",
     "firebase-admin": "latest",
+    "hono": "latest",
     "useragent": "latest",
-    "uuid": "latest",
-    "hono": "latest"
+    "uuid": "latest"
   },
   "devDependencies": {
     "bun-types": "latest"
