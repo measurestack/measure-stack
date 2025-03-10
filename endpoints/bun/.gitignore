@@ -3,9 +3,12 @@
 .terraform
 .git
 *.pyc
+package.json
 
+tsconfig.json
 node_modules
 bun.lockb
 
 package-lock.json
 gcp-key.json
+service-account.json
