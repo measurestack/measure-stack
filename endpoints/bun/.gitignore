@@ -1,6 +1,11 @@
-*.pyc
-node_modules
-bun.lockb
-package-lock.json
+
+.env
 .terraform
 .git
+*.pyc
+
+node_modules
+bun.lockb
+
+package-lock.json
+gcp-key.json
