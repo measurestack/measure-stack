@@ -1,0 +1,17 @@
+
+.env
+.git
+*.pyc
+package.json
+
+**/tsconfig.json
+**/node_modules
+**/bun.lockb
+**/bun.lock
+
+**/package-lock.json
+**/gcp-key.json
+**/service-account.json
+.DS_Store
+
+**/.config/
