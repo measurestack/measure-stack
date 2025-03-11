@@ -3,6 +3,7 @@ const { WebServiceClient } = require("@maxmind/geoip2-node");
 
 const crypto = require('crypto');
 const { isIPv4, isIPv6 } = require('net');
+
 const firestore = new Firestore();
 
 // Initialize the MaxMind GeoIP2 WebServiceClient
