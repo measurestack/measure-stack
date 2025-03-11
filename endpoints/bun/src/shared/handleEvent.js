@@ -30,7 +30,7 @@ module.exports = async function handleEvent(context) {
     trackingData.h1 = trackingData.h1 || getCookie(context, process.env.HASH_COOKIE_NAME) || trackingData.h //process.env.HASH_COOKIE_NAME
     trackingData.ch = ip;
 
-
+    // If Adjust Tracking Data according to user consent
     if (trackingData.en === 'consent') {
         if (trackingData.p.id===true) {
             const domain = context.env.hostname.includes('.') ? '.' + context.env.hostname.split('.').slice(-2).join('.') : context.env.hostname;
@@ -52,7 +52,6 @@ module.exports = async function handleEvent(context) {
     // req.write(JSON.stringify(trackingData));
     // req.end();
     // async background processing of geolocation & storage
-
 
     store(trackingData).catch((error) => {
         console.error("store task failed:\n", error);

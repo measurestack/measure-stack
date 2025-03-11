@@ -9,9 +9,7 @@ const bigquery = new BigQuery({
   projectId: process.env.BIGQUERY_PROJECT_ID, // Ensures the correct project is used
 });
 
-
 const app = new Hono();
-
 
 app.get("/", (c) => c.text("{Nothing to see here}"));
 

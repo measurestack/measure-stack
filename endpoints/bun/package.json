@@ -13,7 +13,8 @@
     "cookie-parser": "latest",
     "dotenv": "latest",
     "elysia": "latest",
-    "firebase-admin": "latest",
+    "firebase-admin": "^13.2.0",
+    "firebase-tools": "^13.33.0",
     "hono": "latest",
     "useragent": "latest",
     "uuid": "latest"

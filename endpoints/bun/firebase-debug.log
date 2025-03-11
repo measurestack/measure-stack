@@ -1,0 +1,22 @@
+[debug] [2025-03-11T10:33:44.899Z] ----------------------------------------------------------------------
+[debug] [2025-03-11T10:33:44.901Z] Command:       /usr/local/bin/node /Users/lorenzschrader/code/9fwr/measure-js/measure-js/endpoints/bun/node_modules/.bin/firebase projects:addfirebase internal-294410
+[debug] [2025-03-11T10:33:44.901Z] CLI Version:   13.33.0
+[debug] [2025-03-11T10:33:44.901Z] Platform:      darwin
+[debug] [2025-03-11T10:33:44.901Z] Node Version:  v22.14.0
+[debug] [2025-03-11T10:33:44.901Z] Time:          Tue Mar 11 2025 11:33:44 GMT+0100 (Central European Standard Time)
+[debug] [2025-03-11T10:33:44.901Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-03-11T10:33:44.904Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-03-11T10:33:44.904Z] > authorizing via signed-in user (lorenz@9fwr.com)
+[debug] [2025-03-11T10:33:44.906Z] Checked if tokens are valid: true, expires at: 1741691799332
+[debug] [2025-03-11T10:33:44.906Z] Checked if tokens are valid: true, expires at: 1741691799332
+[debug] [2025-03-11T10:33:44.907Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/internal-294410:addFirebase [none]
+[debug] [2025-03-11T10:33:45.798Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/internal-294410:addFirebase 403
+[debug] [2025-03-11T10:33:45.798Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/internal-294410:addFirebase {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2025-03-11T10:33:45.799Z] Request to https://firebase.googleapis.com/v1beta1/projects/internal-294410:addFirebase had HTTP Error: 403, The caller does not have permission
+[debug] [2025-03-11T10:33:45.801Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/internal-294410:addFirebase had HTTP Error: 403, The caller does not have permission
+    at responseToError (/Users/lorenzschrader/code/9fwr/measure-js/measure-js/endpoints/bun/node_modules/firebase-tools/lib/responseToError.js:52:12)
+    at RetryOperation._fn (/Users/lorenzschrader/code/9fwr/measure-js/measure-js/endpoints/bun/node_modules/firebase-tools/lib/apiv2.js:312:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[error] 
+[error] Error: Failed to add Firebase to Google Cloud Platform project. See firebase-debug.log for more info.

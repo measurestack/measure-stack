@@ -3,6 +3,7 @@ const bigQuery = new BigQuery({projectId: process.env.GCP_PROJECT_ID});
 const { truncateIP, getGeoIPData } = require('./helpers');
 const useragent = require('useragent');
 
+
 // Function to create a table if it doesn't exist
 async function createTableIfNotExists(datasetId, tableId) {
     const dataset = bigQuery.dataset(datasetId);
@@ -20,8 +21,7 @@ async function createTableIfNotExists(datasetId, tableId) {
         { name: "clientId", type: "STRING" },
         { name: "hash", type: "STRING" },
         { name: "userId", type: "STRING" },
-        {
-            name: "device", type: "RECORD", fields: [
+        { name: "device", type: "RECORD", fields: [
                 { name: "type", type: "STRING" },
                 { name: "brand", type: "STRING" },
                 { name: "model", type: "STRING" },
@@ -32,15 +32,13 @@ async function createTableIfNotExists(datasetId, tableId) {
                 { name: "isBot", type: "BOOL" }
             ]
         },
-        {
-            name: "ab_test", type: "RECORD", mode: "REPEATED", fields: [
+        { name: "ab_test", type: "RECORD", mode: "REPEATED", fields: [
                 { name: "name", type: "STRING" },
                 { name: "variant", type: "STRING" },
                 { name: "def", type: "STRING" }
             ]
         },
-        {
-            name: "location", type: "RECORD", fields: [
+        { name: "location", type: "RECORD", fields: [
                 { name: "ip_trunc", type: "STRING" },
                 { name: "continent", type: "STRING" },
                 { name: "country", type: "STRING" },
@@ -49,6 +47,7 @@ async function createTableIfNotExists(datasetId, tableId) {
             ]
         }
     ];
+
 
     try {
         // Check if the table exists
@@ -74,7 +73,6 @@ async function createTableIfNotExists(datasetId, tableId) {
 }
 
 // create table if not exists:
-
 createTableIfNotExists(process.env.GCP_DATASET_ID, process.env.GCP_TABLE_ID); // WARN: we don't await here to not create an async module, however this doens't ensure that table creation is finished before processing the first event. This should be a very limited problem though
 
 
@@ -99,12 +97,16 @@ async function loadToBigQuery(data) {
 }
 
 module.exports = async function store(trackingData) {
-    await 1 // this will return an wait async for next execution cycle
-    const userAgentParsed = useragent.parse(trackingData.ua);
+
+  await 1 // this will return an wait async for next execution cycle
+
+  const userAgentParsed = useragent.parse(trackingData.ua);
     trackingData.ch = trackingData.ch.includes("127.0.0.1") ? "141.20.2.3" : trackingData.ch; // for local testing
     trackingData.ch = trackingData.ch==="::1" ? "141.20.2.3" : trackingData.ch; // for local testing
+
     const truncatedIP = truncateIP(trackingData.ch);
     geoInfo = await getGeoIPData(truncatedIP) // Get geolocation data
+
     const dataToBQ = {
         timestamp: new Date().toISOString(),
         eventType: trackingData.et,
