@@ -1,12 +1,21 @@
+
+// Only load .env file when not in production
+if (process.env.ENVIRON !== 'production') {
+  require('dotenv').config();
+} else {
+  // Optionally remove GOOGLE_APPLICATION_CREDENTIALS in production
+  delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+}
+
 const { BigQuery } = require('@google-cloud/bigquery');
-const bigQuery = new BigQuery({projectId: process.env.GCP_PROJECT_ID});
+const bigquery = new BigQuery({ projectId: process.env.GCP_PROJECT_ID });
 const { truncateIP, getGeoIPData } = require('./helpers');
 const useragent = require('useragent');
 
 
 // Function to create a table if it doesn't exist
 async function createTableIfNotExists(datasetId, tableId) {
-    const dataset = bigQuery.dataset(datasetId);
+    const dataset = bigquery.dataset(datasetId);
     const table = dataset.table(tableId);
 
     // Define schema based on your requirements
@@ -82,7 +91,7 @@ async function loadToBigQuery(data) {
     const tableId = process.env.GCP_TABLE_ID; // Replace with your table ID
 
     try {
-        const dataset = bigQuery.dataset(datasetId);
+        const dataset = bigquery.dataset(datasetId);
         const table = dataset.table(tableId);
 
         const [apiResponse] = await table.insert([data]);
