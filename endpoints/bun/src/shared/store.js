@@ -1,14 +1,6 @@
 
-// Only load .env file when not in production
-if (process.env.ENVIRON !== 'production') {
-  require('dotenv').config();
-} else {
-  // Optionally remove GOOGLE_APPLICATION_CREDENTIALS in production
-  delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
-}
-
 const { BigQuery } = require('@google-cloud/bigquery');
-const bigquery = new BigQuery({ projectId: process.env.GCP_PROJECT_ID });
+const bigquery = new BigQuery();
 const { truncateIP, getGeoIPData } = require('./helpers');
 const useragent = require('useragent');
 

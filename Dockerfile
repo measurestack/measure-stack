@@ -1,31 +1,33 @@
 # Use the official Bun image
 FROM oven/bun:latest
 
-# Set the working directory inside the container
+# Set the Working Directory to /app, in order to copy all relevant files
 WORKDIR /app
 
-# Copy package manager and config files
-COPY package.json bun.lock tsconfig.json ./
+# Copy the static JS function
+COPY ./static .
 
-# Install dependencies
+# Copy service account file (if you’re using it locally in Docker)
+# and set environment variable
+COPY .config/service-account.json /app/.config/service-account.json
+ENV GOOGLE_APPLICATION_CREDENTIALS="/app/.config/service-account.json"
+
+# Set the working directory to /app/endpoints/bun
+WORKDIR /app/endpoints/bun
+
+# Copy only the package/config files from endpoints/bun
+COPY endpoints/bun/package.json .
+COPY endpoints/bun/bun.lock .
+COPY endpoints/bun/tsconfig.json .
+
+# Install dependencies (only for the endpoints/bun folder)
 RUN bun install
 
-# Copy the rest of the application code
-COPY ./src ./src
-COPY ./static ./static
+# Copy the rest of your application code
+COPY endpoints/bun/src ./src
 
-# Copy the .env file (Optional: Only for local testing, NOT recommended for production)
-COPY .env .env
-
-# If using a service account file locally, ensure it's available
-COPY service-account.json /app/service-account.json
-
-# Set environment variable to point to service account file
-# (Only needed if copying the service account file, otherwise use the mounted volume)
-ENV GOOGLE_APPLICATION_CREDENTIALS="/app/service-account.json"
-
-# Expose the port the app runs on (adjust based on your app configuration)
+# Expose the port (if your Bun app listens on 3000)
 EXPOSE 3000
 
-# Run the Bun application (ensure Bun compiles TypeScript properly)
+# Command to start the server
 CMD ["bun", "run", "src/index.ts"]
