@@ -33,10 +33,39 @@ module.exports = async function handleEvent(context) {
     // If Adjust Tracking Data according to user consent
     if (trackingData.en === 'consent') {
         if (trackingData.p.id===true) {
-            const domain = context.env.hostname.includes('.') ? '.' + context.env.hostname.split('.').slice(-2).join('.') : context.env.hostname;
+            const parts = context.env.hostname.split('.');
+            let domain;
+            if (parts.length > 1) {
+              // Grab the last two segments, e.g. ["9fwr","com"]
+              domain = '.' + parts.slice(-2).join('.');
+            } else {
+              // If there's only one segment (unlikely, but just in case)
+              domain = parts[0];
+            }
             trackingData.c = trackingData.c || uuid.v4();
-            setCookie(context,process.env.CLIENT_ID_COOKIE_NAME, trackingData.c,{maxAge: 31536000, domain: domain }); // maxAge 1y; reset cookie runtime on every consent call
-            setCookie(context,process.env.HASH_COOKIE_NAME, trackingData.h1,{maxAge: 31536000, domain: domain }); // store hash at time of first consent into this cookie to pin user to the A/B variant
+            setCookie(
+                context,
+                process.env.CLIENT_ID_COOKIE_NAME,
+                trackingData.c,
+                {
+                  maxAge: 31536000,
+                  domain: '.9fwr.com',
+                  sameSite: 'none',
+                  path: '/',
+                  secure: true
+                }); // maxAge 1y; reset cookie runtime on every consent call
+
+            setCookie(
+                context,
+                process.env.HASH_COOKIE_NAME,
+                trackingData.h1,{
+                  maxAge: 31536000,
+                  domain: '.9fwr.com',
+                  sameSite: 'none',
+                  path: '/',
+                  secure: true
+                }); // store hash at time of first consent into this cookie to pin user to the A/B variant
+
         } else if (trackingData.p.id === false) {
             deleteCookie(context, process.env.CLIENT_ID_COOKIE_NAME);
             deleteCookie(context, process.env.HASH_COOKIE_NAME);

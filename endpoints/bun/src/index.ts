@@ -13,7 +13,7 @@ const app = new Hono();
 // Set the Middleware Configurations to allow HTTP requests to the app
 app.use('*', async (c, next) => {
   const corsMiddlewareHandler = cors({
-    origin: process.env.CORS_ORIGIN, // The Location where the script will be deployed
+    origin: ['https://9fwr.com', 'https://www.9fwr.com'], // The Location where the script will be deployed
     allowMethods: ['GET', 'POST', 'OPTIONS'],
     credentials: true
     })
