@@ -1,3 +1,8 @@
+// we could dynamically change the endpoint by checking the host URL (slower)
+// other way -> while deploying -> the deploy url should be clear we could check the endpoint
+// at glcoud _> you can define a subdomain for the tracking -> ask the user for his preferred URL -> then we would
+
+
 // Define _measure library
 var _measure = (function() {
   var endpoint = "{{ endpoint }}";

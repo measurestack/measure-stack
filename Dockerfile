@@ -7,11 +7,6 @@ WORKDIR /app
 # Copy the static JS function
 COPY ./static .
 
-# Copy service account file (if you’re using it locally in Docker)
-# and set environment variable
-COPY .config/service-account.json /app/.config/service-account.json
-ENV GOOGLE_APPLICATION_CREDENTIALS="/app/.config/service-account.json"
-
 # Set the working directory to /app/endpoints/bun
 WORKDIR /app/endpoints/bun
 
