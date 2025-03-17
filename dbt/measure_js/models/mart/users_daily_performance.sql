@@ -1,0 +1,1 @@
+{{ daily_performance(ref('users_enriched'),'first_session_ts', 'first_utm', ['users','sessions','reports','bookings','paid_bookings', 'revenue']) }}

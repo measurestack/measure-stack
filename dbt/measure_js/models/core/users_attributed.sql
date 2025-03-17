@@ -1,0 +1,1 @@
+{{ create_user_model(ref('sessions_attributed')) }}

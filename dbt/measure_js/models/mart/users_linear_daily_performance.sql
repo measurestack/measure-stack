@@ -1,0 +1,1 @@
+{{ daily_performance(ref('users_touchpoints'),'utm_ts', 'utm', ['users','sessions','reports','bookings','paid_bookings', 'revenue']) }}

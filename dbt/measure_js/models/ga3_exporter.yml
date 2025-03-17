@@ -1,0 +1,54 @@
+#ref takes results of sql files
+
+version: 2
+sources:
+  - name: tracking
+    database: ga3-prod-exporter
+    tables:
+      - name: events
+#  - name: source_facebook_ads
+#    database: ga3-prod-exporter
+#    tables:
+#      - name: novodaily
+#      - name: ad_history
+#      - name: ad_set_history
+#      - name: campaign_history
+#      - name: account_history
+  - name: firestore
+    database: ga3-prod-exporter
+    tables:
+      - name: users
+        columns: 
+          - name: user_id
+            tests:
+              - unique
+              - not_null
+      - name: reports
+        columns: 
+          - name: report_id
+            tests:
+              - unique
+              - not_null
+      - name: bookings
+        columns: 
+          - name: booking_id
+            tests:
+              - unique
+              - not_null
+  - name: adwords
+    database: ga3-prod-exporter
+    tables:
+      - name: ads_AdBasicStats_7539300735
+      - name: ads_Ad_7539300735
+      - name: ads_Campaign_7539300735
+      - name: ads_AdGroup_7539300735
+      - name: ads_Customer_7539300735
+      - name: ads_ClickStats_7539300735
+
+models:
+  - name: google_ads_hierarchy
+    columns:
+      - name: ad_id
+        tests:
+          - unique
+          - not_null
