@@ -4,32 +4,56 @@
 export DAILY_SALT=123456789
 export CLIENT_ID_COOKIE_NAME=_ms_cid
 export HASH_COOKIE_NAME=_ms_h
-export GCP_PROJECT_ID=internal-294410
-export GCP_DATASET_ID=test_tracking
+export GCP_PROJECT_ID=ga4-9fwr
+export GCP_DATASET_ID=measure_js
 export GCP_TABLE_ID=events
 export GEO_ACCOUNT=1136583
 export GEO_KEY=
-export SERVICE_NAME=measure-js-app
 export REGION=europe-west1
 export CORS_ORIGIN=https://9fwr.com
 export SERVICE_NAME=measure-js-app
+export FIRESTORE_DATABASE_ID=(default)
+# ============================ GCP Setup Checks ================================
 
-# =============================== Checks =======================================
+set -e
 
-# Check 1 - Is the User Logged In?
+## 1.1 - Check that the user is logged in and has the the correct permissions
 ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)")
 
 if [ -z "$ACTIVE_ACCOUNT" ]; then
-  echo "❌ No active GCP account found. Please run 'gcloud auth login' first."
+  echo "❌ No active GCP account found. Please login first."
+  gcloud auth login
   exit 1
 fi
 echo "✅ Logged in as: $ACTIVE_ACCOUNT"
 
 
-# Check 2 - Do the Project / Dataset / Table exist?
-## 2.1 Check Project Existence
+## 1.2 - Ensure that the relevant APIs are enabled and the user has the required permissions
+gcloud services enable run.googleapis.com \
+                     cloudbuild.googleapis.com \
+                     bigquery.googleapis.com \
+                     firestore.googleapis.com
+
+PERMISSION_CHECK=$(gcloud projects get-iam-policy "$GCP_PROJECT_ID" \
+  --flatten="bindings[].members" \
+  --format="value(bindings.role)" \
+  --filter="bindings.members:user:$ACTIVE_ACCOUNT" | grep -E "roles/owner|roles/editor|roles/iam.admin" || true)
+
+if [ -z "$PERMISSION_CHECK" ]; then
+  echo "❌ User '$ACTIVE_ACCOUNT' does not have the required IAM permissions to create a service account."
+  echo "🔑 Required roles: Owner (roles/owner), Editor (roles/editor), or IAM Admin (roles/iam.admin)."
+  echo "Request an administrator to grant you the necessary permissions."
+  exit 1
+else
+  echo "✅ User '$ACTIVE_ACCOUNT' has permissions to create a service account."
+fi
+
+
+# 1.3 - Check for the GCP Project
 echo "🔍 Checking if GCP project exists..."
-gcloud projects describe "$GCP_PROJECT_ID" > /dev/null 2>&1 || {
+if gcloud projects describe "$GCP_PROJECT_ID" > /dev/null 2>&1; then
+  echo "✅ Project '$GCP_PROJECT_ID' already exists."
+else
   read -p "❌ Project not found! Do you want to create the project? [y/n] " CREATE_PR
   if [ "$CREATE_PR" = "y" ]; then
     echo "Creating project..."
@@ -37,89 +61,132 @@ gcloud projects describe "$GCP_PROJECT_ID" > /dev/null 2>&1 || {
         --name="$GCP_PROJECT_ID" \
         --set-as-default
   else
-      echo "Exiting..."
-      exit 1
+    echo "Exiting..."
+    exit 1
   fi
-  }
+fi
 
-## 2.2 Check Dataset Existence
+## If it exits, set the project as default, otherwise the GCP_PROJECT_ID is overwritten by the default project set via command line
+gcloud config set project "$GCP_PROJECT_ID"
+
+## 1.4 - Check if billing is enabled:
+BILLING_ENABLED=$(gcloud beta billing projects describe "$GCP_PROJECT_ID" --format="value(billingEnabled)")
+
+if [ "$BILLING_ENABLED" = "True" ]; then
+  echo "✅ Billing is enabled for project '$GCP_PROJECT_ID'."
+else
+  echo "❌ Billing is NOT enabled for project '$GCP_PROJECT_ID'."
+  read -p "Do you want to link the project to a billing account? [y/n] " LINK_BILLING
+  if [ "$LINK_BILLING" = "y" ]; then
+    echo "Please select a billing account from the list below and copy the ID:"
+    gcloud beta billing accounts list
+
+    read -p "Enter the Billing Account ID: " BILLING_ACCOUNT_ID
+    echo "Linking project '$GCP_PROJECT_ID' to billing account '$BILLING_ACCOUNT_ID'..."
+    gcloud beta billing projects link "$GCP_PROJECT_ID" \
+      --billing-account "$BILLING_ACCOUNT_ID"
+
+    # Verify it was successful
+    BILLING_ENABLED=$(gcloud beta billing projects describe "$GCP_PROJECT_ID" --format="value(billingEnabled)")
+    if [ "$BILLING_ENABLED" = "True" ]; then
+      echo "✅ Billing is now enabled for project '$GCP_PROJECT_ID'."
+    else
+      echo "❌ Could not enable billing. Exiting..."
+      exit 1
+    fi
+  else
+    echo "Exiting because billing is not enabled."
+    exit 1
+  fi
+fi
+
+## 1.5 - Dataset Existence
 echo "🔍 Checking if GCP Dataset '$GCP_DATASET_ID' exists in project '$GCP_PROJECT_ID'..."
 
-bq ls --format=sparse "$GCP_PROJECT_ID:$GCP_DATASET_ID" >/dev/null 2>&1 || {
+if bq ls --format=sparse "$GCP_PROJECT_ID:$GCP_DATASET_ID" >/dev/null 2>&1; then
+    echo "✅ Dataset '$GCP_DATASET_ID' already exists."
+else
     read -p "❌ Dataset not found! Do you want to create the Dataset? [y/n] " CREATE_DS
     if [ "$CREATE_DS" = "y" ]; then
         echo "Creating dataset '$GCP_DATASET_ID' in project '$GCP_PROJECT_ID'..."
-        bq mk --dataset "$GCP_PROJECT_ID:$GCP_DATASET_ID"
+        bq mk --dataset --location "$REGION" "$GCP_PROJECT_ID:$GCP_DATASET_ID"
         echo "✅ Dataset '$GCP_DATASET_ID' created."
     else
         echo "Exiting..."
         exit 1
     fi
-}
-
-## 2.2 Check Table Existence
-if bq show --format=prettyjson "$GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID" >/dev/null 2>&1; then
-  echo "✅ Table '$GCP_TABLE_ID' exists in dataset '$GCP_DATASET_ID'."
-else
-  echo "❌ Table '$GCP_TABLE_ID' not found in dataset '$GCP_DATASET_ID'. It will be created during deployment"
-  # Prompt user to create the table, or exit
 fi
 
-# Check 3 - Does the Service Account already exists / Does he have the correct permissions?
-SA_NAME="${SERVICE_NAME}-sa"
+## 1.6 - Check Table Existence
+echo "🔍 Checking if GCP Table '$GCP_TABLE_ID' exists in dataset '$GCP_DATASET_ID'..."
+
+if bq show --format=prettyjson "$GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID" >/dev/null 2>&1; then
+    echo "✅ Table '$GCP_TABLE_ID' already exists in dataset '$GCP_DATASET_ID'."
+else
+    read -p "❌ Table '$GCP_TABLE_ID' not found in dataset '$GCP_DATASET_ID'. Do you want to create the Table? [y/n] " CREATE_TB
+    if [ "$CREATE_TB" = "y" ]; then
+        echo "🛠️ Creating table ..."
+        if bq mk --table \
+                 --location $REGION $GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID bq_table_schema.json ; then
+          echo "✅ Table '$GCP_TABLE_ID' created."
+        else
+          echo "❌ Failed to create table '$GCP_TABLE_ID'."
+          exit 1
+        fi
+    else
+        echo "Exiting..."
+        exit 1
+    fi
+fi
+
+
+# ============================== GCP SA Checks =================================
+
+## 2.1 - Check if the specific Service Account already exists (relevant if the script is run for redeployment)
+SA_NAME="${SERVICE_NAME}"
 SA_EMAIL="$SA_NAME@$GCP_PROJECT_ID.iam.gserviceaccount.com"
 
 
+## Check 2.2 - Check / Set the correct policy bindings for the service account
 EXISTING_SA=$(gcloud iam service-accounts list \
     --filter="email=$SA_EMAIL" \
     --format="value(email)")
-
-if [ "$EXISTING_SA" = "$SA_EMAIL" ]; then
-  echo "✅ Service account $SA_EMAIL already exists."
-
-else
+if [ -z "$EXISTING_SA" ]; then
   echo "👤 Creating service account: $SA_NAME..."
-  gcloud iam service-accounts create "$SA_NAME" --display-name "Measure-JS SA for $SERVICE_NAME" || echo "✅ Service account already exists."
-
-  # Assign IAM roles (limited to the specific BigQuery Dataset and Firestore Database)
-  echo "🔑 Assigning IAM roles to the service account..."
-  gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
-      --member="serviceAccount:$SA_EMAIL" \
-      --role="roles/datastore.user"
-
-  # Assign BigQuery dataset-level access for the service account
-  echo "🔑 Assigning BigQuery dataset-level access to $SA_EMAIL on dataset $GCP_DATASET_ID..."
-
-  # 1) Retrieve the existing dataset access into a temporary JSON file
-  bq show --format=prettyjson "$GCP_PROJECT_ID:$GCP_DATASET_ID" > dataset_temp.json
-
-  # 2) Use jq to append a new access rule for the service account
-  #    - 'userByEmail': Use the service account's email
-  #    - 'role': "WRITER" grants read/write. Use "READER" for read-only, or "OWNER" for full control.
-  jq --arg SA_EMAIL "$SA_EMAIL" '.access += [{"userByEmail": $SA_EMAIL, "role": "WRITER"}]' dataset_temp.json > dataset_access.json
-
-  # 3) Update the dataset with the modified access
-  bq update --source dataset_access.json "$GCP_PROJECT_ID:$GCP_DATASET_ID"
-
-  # 4) Clean up temporary files
-  rm dataset_temp.json dataset_access.json
+  gcloud iam service-accounts create "$SA_NAME" --display-name "Measure-JS SA for $SERVICE_NAME"
+else
+  echo "✅ Service account $SA_EMAIL already exists."
 fi
 
-# Build and push the Docker image
-# Ensure Docker is open:
-if ! docker info >/dev/null 2>&1; then
-    echo "🐳 Docker does not seem to be running. Attempting to start Docker Desktop..."
-    open /Applications/Docker.app || {
-      echo "❌ Could not open Docker Desktop. Please start it manually."
-      exit 1
-    }
 
-# Wait for Docker to be fully running
-while ! docker info >/dev/null 2>&1; do
-  echo "⏳ Waiting for Docker to start..."
-  sleep 1
-done
-fi
+### BigQuery Access (limited to the specific table)
+bq add-iam-policy-binding \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/bigquery.dataEditor" \
+  $GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID > /dev/null 2>&1;
+
+### Firestore Accesshow
+gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
+  --member="serviceAccount:$SA_EMAIL" \
+  --role="roles/datastore.user" \
+  --condition="expression=resource.name.startsWith('projects/$GCP_PROJECT_ID/databases/$FIRESTORE_DATABASE_ID'),title=FirestoreDatabaseAccess" > /dev/null 2>&1;
+
+### Cloud Run Access
+# Create the custom role (if it doesn't exist)
+# if ! gcloud iam roles describe cloudRunDeployerInvoker --project=$GCP_PROJECT_ID > /dev/null 2>&1; then
+#   echo "🛠️ Creating custom role cloudRunDeployerInvoker..."
+#   gcloud iam roles create cloudRunDeployerInvoker \
+#     --project=$GCP_PROJECT_ID \
+#     --file=custom-run-role.yml
+# else
+#     echo "✅ custom role cloudRunDeployerInvoker already exists."
+# fi
+
+# # Add the service account to the custom role
+# gcloud run services add-iam-policy-binding $SERVICE_NAME \
+#   --member="serviceAccount:$SA_EMAIL" \
+#   --role="projects/$GCP_PROJECT_ID/roles/cloudRunDeployerInvoker" \
+#   --region=$REGION
 
 IMAGE_NAME="gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME"
 gcloud builds submit --tag "$IMAGE_NAME" .

@@ -13,15 +13,15 @@ async function createTableIfNotExists(datasetId, tableId) {
     // Define schema based on your requirements
     const schema = [
         { name: "timestamp", type: "TIMESTAMP" },
-        { name: "eventType", type: "STRING" },
-        { name: "eventName", type: "STRING" },
+        { name: "event_type", type: "STRING" },
+        { name: "event_name", type: "STRING" },
         { name: "parameters", type: "STRING" }, // Use STRING to store JSON
-        { name: "userAgent", type: "STRING" },
+        { name: "user_agent", type: "STRING" },
         { name: "url", type: "STRING" },
         { name: "referrer", type: "STRING" },
-        { name: "clientId", type: "STRING" },
+        { name: "client_id", type: "STRING" },
         { name: "hash", type: "STRING" },
-        { name: "userId", type: "STRING" },
+        { name: "user_id", type: "STRING" },
         { name: "device", type: "RECORD", fields: [
                 { name: "type", type: "STRING" },
                 { name: "brand", type: "STRING" },
@@ -30,7 +30,7 @@ async function createTableIfNotExists(datasetId, tableId) {
                 { name: "browserVersion", type: "STRING" },
                 { name: "os", type: "STRING" },
                 { name: "osVersion", type: "STRING" },
-                { name: "isBot", type: "BOOL" }
+                { name: "is_bot", type: "BOOL" }
             ]
         },
         { name: "ab_test", type: "RECORD", mode: "REPEATED", fields: [
@@ -48,7 +48,6 @@ async function createTableIfNotExists(datasetId, tableId) {
             ]
         }
     ];
-
 
     try {
         // Check if the table exists

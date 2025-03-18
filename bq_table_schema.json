@@ -1,0 +1,125 @@
+[
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP"
+  },
+  {
+    "name": "event_type",
+    "type": "STRING"
+  },
+  {
+    "name": "event_name",
+    "type": "STRING"
+  },
+  {
+    "name": "parameters",
+    "type": "STRING"
+  },
+  {
+    "name": "user_agent",
+    "type": "STRING"
+  },
+  {
+    "name": "url",
+    "type": "STRING"
+  },
+  {
+    "name": "referrer",
+    "type": "STRING"
+  },
+  {
+    "name": "client_id",
+    "type": "STRING"
+  },
+  {
+    "name": "hash",
+    "type": "STRING"
+  },
+  {
+    "name": "user_id",
+    "type": "STRING"
+  },
+  {
+    "name": "device",
+    "type": "RECORD",
+    "fields": [
+      {
+        "name": "type",
+        "type": "STRING"
+      },
+      {
+        "name": "brand",
+        "type": "STRING"
+      },
+      {
+        "name": "model",
+        "type": "STRING"
+      },
+      {
+        "name": "browser",
+        "type": "STRING"
+      },
+      {
+        "name": "browser_version",
+        "type": "STRING"
+      },
+      {
+        "name": "os",
+        "type": "STRING"
+      },
+      {
+        "name": "os_version",
+        "type": "STRING"
+      },
+      {
+        "name": "is_bot",
+        "type": "BOOLEAN"
+      }
+    ]
+  },
+  {
+    "name": "ab_test",
+    "type": "RECORD",
+    "mode": "REPEATED",
+    "fields": [
+      {
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "name": "variant",
+        "type": "STRING"
+      },
+      {
+        "name": "def",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "name": "location",
+    "type": "RECORD",
+    "fields": [
+      {
+        "name": "ip_trunc",
+        "type": "STRING"
+      },
+      {
+        "name": "continent",
+        "type": "STRING"
+      },
+      {
+        "name": "country",
+        "type": "STRING"
+      },
+      {
+        "name": "country_code",
+        "type": "STRING"
+      },
+      {
+        "name": "city",
+        "type": "STRING"
+      }
+    ]
+  }
+]

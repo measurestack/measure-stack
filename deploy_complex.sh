@@ -1,5 +1,5 @@
-# This file contains a different approach to defining the environment variables, compared to hardcoding them, the user needs to provide them in the CL
-#!/bin/bash
+# Script to deploy the app to Cloud Run
+
 read -p "Please specify the target environment: 'prod' or 'dev': " ENVIRON
 export ENVIRON
 
@@ -11,6 +11,7 @@ if [ -z "$ACTIVE_ACCOUNT" ]; then
   exit 1
 fi
 echo "✅ Logged in as: $ACTIVE_ACCOUNT"
+
 
 # ==================== Environment Variable Definitions ========================
 

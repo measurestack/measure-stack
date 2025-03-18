@@ -17,3 +17,5 @@ package.json
 
 
 **/.config/
+deploy_complex.sh
+deploy.sh
