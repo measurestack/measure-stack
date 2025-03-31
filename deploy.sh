@@ -1,18 +1,6 @@
 
 # =========================== ENV VAR Definitions ==============================
 
-export DAILY_SALT=123456789
-export CLIENT_ID_COOKIE_NAME=_ms_cid
-export HASH_COOKIE_NAME=_ms_h
-export GCP_PROJECT_ID=ga4-9fwr
-export GCP_DATASET_ID=measure_js
-export GCP_TABLE_ID=events
-export GEO_ACCOUNT=1136583
-export GEO_KEY=
-export REGION=europe-west1
-export CORS_ORIGIN=https://9fwr.com
-export SERVICE_NAME=measure-js-app
-export FIRESTORE_DATABASE_ID=(default)
 # ============================ GCP Setup Checks ================================
 
 set -e
@@ -28,7 +16,7 @@ fi
 echo "✅ Logged in as: $ACTIVE_ACCOUNT"
 
 
-## 1.2 - Ensure that the relevant APIs are enabled and the user has the required permissions
+# 1.2 - Ensure that the relevant APIs are enabled and the user has the required permissions
 gcloud services enable run.googleapis.com \
                      cloudbuild.googleapis.com \
                      bigquery.googleapis.com \
@@ -139,7 +127,6 @@ else
     fi
 fi
 
-
 # ============================== GCP SA Checks =================================
 
 ## 2.1 - Check if the specific Service Account already exists (relevant if the script is run for redeployment)
@@ -158,21 +145,35 @@ else
   echo "✅ Service account $SA_EMAIL already exists."
 fi
 
+### BigQuery Access (NOT limited to the specific table)
+# gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
+#   --member="serviceAccount:$SA_EMAIL" \
+#   --role="roles/bigquery.dataEditor" > /dev/null 2>&1;
 
-### BigQuery Access (limited to the specific table)
-bq add-iam-policy-binding \
-  --member="serviceAccount:$SA_EMAIL" \
-  --role="roles/bigquery.dataEditor" \
-  $GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID > /dev/null 2>&1;
+echo "🔑 Assigning BigQuery dataset-level access to $SA_EMAIL on dataset $GCP_DATASET_ID..."
+
+# 1) Retrieve the existing dataset access into a temporary JSON file
+bq show --format=prettyjson "$GCP_PROJECT_ID:$GCP_DATASET_ID" > dataset_temp.json
+
+# 2) Use jq to append a new access rule for the service account
+#    - 'userByEmail': Use the service account's email
+#    - 'role': "WRITER" grants read/write. Use "READER" for read-only, or "OWNER" for full control.
+jq --arg SA_EMAIL "$SA_EMAIL" '.access += [{"userByEmail": $SA_EMAIL, "role": "WRITER"}]' dataset_temp.json > dataset_access.json
+
+# 3) Update the dataset with the modified access
+bq update --source dataset_access.json "$GCP_PROJECT_ID:$GCP_DATASET_ID"
+
+# 4) Clean up temporary files
+rm dataset_temp.json dataset_access.json
+
 
 ### Firestore Accesshow
-gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
+gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
   --member="serviceAccount:$SA_EMAIL" \
-  --role="roles/datastore.user" \
-  --condition="expression=resource.name.startsWith('projects/$GCP_PROJECT_ID/databases/$FIRESTORE_DATABASE_ID'),title=FirestoreDatabaseAccess" > /dev/null 2>&1;
+  --role="roles/datastore.user"
 
-### Cloud Run Access
-# Create the custom role (if it doesn't exist)
+## Cloud Run Access
+## Create the custom role (if it doesn't exist)
 # if ! gcloud iam roles describe cloudRunDeployerInvoker --project=$GCP_PROJECT_ID > /dev/null 2>&1; then
 #   echo "🛠️ Creating custom role cloudRunDeployerInvoker..."
 #   gcloud iam roles create cloudRunDeployerInvoker \
@@ -206,8 +207,7 @@ gcloud run deploy "$SERVICE_NAME" \
     --set-env-vars "DAILY_SALT=$DAILY_SALT" \
     --set-env-vars "GEO_ACCOUNT=$GEO_ACCOUNT" \
     --set-env-vars "GEO_KEY=$GEO_KEY" \
-    --set-env-vars "CORS_ORIGIN=$CORS_ORIGIN" \
-    --service-account "$SA_EMAIL"
+    --set-env-vars "CORS_ORIGIN=$CORS_ORIGIN"
 
 
 echo "✅ Deployment complete!"

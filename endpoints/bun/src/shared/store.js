@@ -5,77 +5,6 @@ const { truncateIP, getGeoIPData } = require('./helpers');
 const useragent = require('useragent');
 
 
-// Function to create a table if it doesn't exist
-async function createTableIfNotExists(datasetId, tableId) {
-    const dataset = bigquery.dataset(datasetId);
-    const table = dataset.table(tableId);
-
-    // Define schema based on your requirements
-    const schema = [
-        { name: "timestamp", type: "TIMESTAMP" },
-        { name: "event_type", type: "STRING" },
-        { name: "event_name", type: "STRING" },
-        { name: "parameters", type: "STRING" }, // Use STRING to store JSON
-        { name: "user_agent", type: "STRING" },
-        { name: "url", type: "STRING" },
-        { name: "referrer", type: "STRING" },
-        { name: "client_id", type: "STRING" },
-        { name: "hash", type: "STRING" },
-        { name: "user_id", type: "STRING" },
-        { name: "device", type: "RECORD", fields: [
-                { name: "type", type: "STRING" },
-                { name: "brand", type: "STRING" },
-                { name: "model", type: "STRING" },
-                { name: "browser", type: "STRING" },
-                { name: "browserVersion", type: "STRING" },
-                { name: "os", type: "STRING" },
-                { name: "osVersion", type: "STRING" },
-                { name: "is_bot", type: "BOOL" }
-            ]
-        },
-        { name: "ab_test", type: "RECORD", mode: "REPEATED", fields: [
-                { name: "name", type: "STRING" },
-                { name: "variant", type: "STRING" },
-                { name: "def", type: "STRING" }
-            ]
-        },
-        { name: "location", type: "RECORD", fields: [
-                { name: "ip_trunc", type: "STRING" },
-                { name: "continent", type: "STRING" },
-                { name: "country", type: "STRING" },
-                { name: "country_code", type: "STRING" },
-                { name: "city", type: "STRING" }
-            ]
-        }
-    ];
-
-    try {
-        // Check if the table exists
-        const [tableExists] = await table.exists();
-
-        if (!tableExists) {
-            console.log(`Table ${tableId} does not exist. Creating table...`);
-            await dataset.createTable(tableId, {
-                schema: schema,
-                timePartitioning: {
-                    type: 'DAY',
-                    field: 'timestamp' // Partition by timestamp
-                }
-            });
-            console.log(`Table ${tableId} created successfully.`);
-        } else {
-            console.log(`Table ${tableId} already exists.`);
-        }
-    } catch (err) {
-        console.error(`Error in table creation: ${err.message}`);
-        throw new Error(`Table creation failed: ${err.message}`);
-    }
-}
-
-// create table if not exists:
-createTableIfNotExists(process.env.GCP_DATASET_ID, process.env.GCP_TABLE_ID); // WARN: we don't await here to not create an async module, however this doens't ensure that table creation is finished before processing the first event. This should be a very limited problem though
-
-
 async function loadToBigQuery(data) {
 
     const datasetId = process.env.GCP_DATASET_ID; // Replace with your dataset ID
@@ -109,24 +38,24 @@ module.exports = async function store(trackingData) {
 
     const dataToBQ = {
         timestamp: new Date().toISOString(),
-        eventType: trackingData.et,
-        eventName: trackingData.en,
+        event_type: trackingData.et,
+        event_name: trackingData.en,
         parameters: JSON.stringify(trackingData.p),
-        userAgent: trackingData.ua,
+        user_agent: trackingData.ua,
         url: trackingData.url,
         referrer: trackingData.r,
-        clientId: trackingData.c,
+        client_id: trackingData.c,
         hash: trackingData.h,
-        userId: trackingData.u,
+        user_id: trackingData.u,
         device: {
             type: userAgentParsed.device.family,
             brand: userAgentParsed.device.brand,
             model: userAgentParsed.device.model,
             browser: userAgentParsed.family,
-            browserVersion: userAgentParsed.toVersion(),
+            browser_version: userAgentParsed.toVersion(),
             os: userAgentParsed.os.family,
-            osVersion: userAgentParsed.os.toVersion(),
-            isBot: userAgentParsed.device.isBot
+            os_version: userAgentParsed.os.toVersion(),
+            is_bot: userAgentParsed.device.isBot
         },
         location: {
             ip_trunc: truncatedIP,

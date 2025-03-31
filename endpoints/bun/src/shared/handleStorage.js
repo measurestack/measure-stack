@@ -15,21 +15,21 @@ module.exports = function handleStorage(req, res) {
                 eventType: trackingData.et,
                 eventName: trackingData.en,
                 parameters: JSON.stringify(trackingData.p),
-                userAgent: trackingData.ua,
+                user_agent: trackingData.ua,
                 url: trackingData.url,
                 referrer: trackingData.r,
-                clientId: trackingData.c,
+                client_id: trackingData.c,
                 hash: trackingData.h,
-                userId: trackingData.u,
+                user_id: trackingData.u,
                 device: {
                     type: userAgentParsed.device.family,
                     brand: userAgentParsed.device.brand,
                     model: userAgentParsed.device.model,
                     browser: userAgentParsed.family,
-                    browserVersion: userAgentParsed.toVersion(),
+                    browser_version: userAgentParsed.toVersion(),
                     os: userAgentParsed.os.family,
-                    osVersion: userAgentParsed.os.toVersion(),
-                    isBot: userAgentParsed.device.isBot
+                    os_version: userAgentParsed.os.toVersion(),
+                    is_bot: userAgentParsed.device.isBot
                 },
                 location: {
                     ip_trunc: truncatedIP,
