@@ -209,6 +209,5 @@ gcloud run deploy "$SERVICE_NAME" \
     --set-env-vars "GEO_KEY=$GEO_KEY" \
     --set-env-vars "CORS_ORIGIN=$CORS_ORIGIN"
 
-
 echo "✅ Deployment complete!"
 echo "🌍 Your app is live at: $(gcloud run services describe $SERVICE_NAME --region $REGION --format='value(status.url)')"

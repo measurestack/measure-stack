@@ -12,7 +12,6 @@ if [ -z "$ACTIVE_ACCOUNT" ]; then
 fi
 echo "✅ Logged in as: $ACTIVE_ACCOUNT"
 
-
 # ==================== Environment Variable Definitions ========================
 
 read -p "Enter your GCP Project ID: " GCP_PROJECT_ID

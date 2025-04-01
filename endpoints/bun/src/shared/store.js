@@ -7,8 +7,8 @@ const useragent = require('useragent');
 
 async function loadToBigQuery(data) {
 
-    const datasetId = process.env.GCP_DATASET_ID; // Replace with your dataset ID
-    const tableId = process.env.GCP_TABLE_ID; // Replace with your table ID
+    const datasetId = process.env.GCP_DATASET_ID;
+    const tableId = process.env.GCP_TABLE_ID;
 
     try {
         const dataset = bigquery.dataset(datasetId);
