@@ -21,9 +21,10 @@ export interface ProcessedEvent {
   user_agent: string;
   url: string;
   referrer: string;
-  client_id: string;
-  hash: string;
-  user_id?: string;
+  client_id: string | null;
+  hash: string | null;
+  user_id?: string | null;
+  consent_given: boolean;
   device: {
     type: string;
     brand: string;

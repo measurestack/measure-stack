@@ -347,6 +347,11 @@ video.addEventListener('pause', () => {
 
 ### GDPR Compliance
 
+The Measure.js SDK provides flexible consent management that respects user privacy while still allowing for anonymous analytics:
+
+- **With Consent**: Events are tracked with full user identification (client ID, hash, user ID)
+- **Without Consent**: Events are tracked anonymously (no personal identifiers) for aggregate analytics
+
 ```javascript
 // Consent management
 function initializeConsent() {
@@ -378,14 +383,25 @@ function showConsentBanner() {
   const banner = document.createElement('div');
   banner.innerHTML = `
     <div style="position: fixed; bottom: 0; left: 0; right: 0; background: #f0f0f0; padding: 20px; border-top: 1px solid #ccc;">
-      <p>We use cookies to analyze site traffic and optimize your site experience.</p>
-      <button onclick="updateConsent({id: true, analytics: true, marketing: false})">Accept</button>
-      <button onclick="updateConsent({id: false, analytics: false, marketing: false})">Decline</button>
+      <p>We use cookies to analyze site traffic and optimize your site experience.
+      <strong>Even without consent, we collect anonymous analytics data to improve our service.</strong></p>
+      <button onclick="updateConsent({id: true, analytics: true, marketing: false})">Accept All</button>
+      <button onclick="updateConsent({id: false, analytics: false, marketing: false})">Decline Personal Tracking</button>
     </div>
   `;
   document.body.appendChild(banner);
 }
 ```
+
+### Anonymous Tracking
+
+When users decline consent or revoke it, the system continues to collect analytics data but without personal identifiers:
+
+- ✅ **Still tracked**: Page views, events, device info, geographic data
+- ❌ **Not tracked**: Client ID, user hash, user ID, personal identifiers
+- 📊 **Purpose**: Aggregate analytics and service improvement
+
+This approach allows you to maintain valuable analytics insights while respecting user privacy preferences.
 
 ### Do Not Track Support
 

@@ -11,11 +11,17 @@ export const config = {
     account: process.env.GEO_ACCOUNT || '',
     key: process.env.GEO_KEY || '',
   },
-  region: process.env.REGION || 'us-central1',
+  region: process.env.REGION || 'europe-west3',
   serviceName: process.env.SERVICE_NAME || 'measure-js-app',
   cors: {
     origins: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : ['https://9fwr.com', 'https://www.9fwr.com'],
     allowMethods: ['GET', 'POST', 'OPTIONS'],
     credentials: true,
+  },
+  rateLimit: {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute
+    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 100 requests per minute
+    skipSuccessfulRequests: process.env.RATE_LIMIT_SKIP_SUCCESS === 'true',
+    skipFailedRequests: process.env.RATE_LIMIT_SKIP_FAILED === 'true',
   }
 };

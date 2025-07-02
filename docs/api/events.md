@@ -196,11 +196,31 @@ The API automatically enriches events with:
 
 ## Rate Limiting
 
-The API implements rate limiting to prevent abuse:
+The API implements rate limiting to prevent abuse and protect against excessive usage:
 
-- **Default**: 100 requests per minute per IP
-- **Burst**: 10 requests per second
+- **Default**: 100 requests per minute per IP address
+- **Window**: 1-minute sliding window
 - **Headers**: Rate limit information included in response headers
+- **Response**: 429 status code when limit exceeded
+
+### Rate Limit Headers
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 2024-01-15T10:30:00.000Z
+```
+
+### Configuration
+
+Rate limiting can be configured via environment variables:
+
+```bash
+RATE_LIMIT_WINDOW_MS=60000      # Time window in milliseconds
+RATE_LIMIT_MAX_REQUESTS=100     # Max requests per window
+RATE_LIMIT_SKIP_SUCCESS=false   # Skip rate limiting for successful requests
+RATE_LIMIT_SKIP_FAILED=false    # Skip rate limiting for failed requests
+```
 
 ## CORS Support
 

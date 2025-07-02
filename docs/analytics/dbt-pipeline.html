@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>dbt Data Pipeline</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="dbt-data-pipeline">dbt Data Pipeline</h1>
+<p>The Measure.js dbt pipeline transforms raw event data from BigQuery into clean, analytics-ready datasets. This document covers the data transformation process, models, and how to use the analytics data.</p>
+<h2 id="overview">Overview</h2>
+<p>The dbt pipeline processes raw events from the <code>events</code> table and creates several layers of transformed data:</p>
+<ul>
+<li><strong>Staging</strong>: Cleaned and validated raw data</li>
+<li><strong>Core</strong>: Business logic and user/session identification</li>
+<li><strong>Mart</strong>: Analytics-ready aggregated tables</li>
+</ul>
+<h2 id="pipeline-architecture">Pipeline Architecture</h2>
+<pre><code>Raw Events (BigQuery)
+       ↓
+   Staging Layer
+       ↓
+    Core Layer
+       ↓
+    Mart Layer
+       ↓
+  Analytics Dashboards
+</code></pre>
+<h2 id="setup">Setup</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<ul>
+<li>dbt Core or dbt Cloud</li>
+<li>BigQuery access</li>
+<li>Python 3.8+</li>
+</ul>
+<h3 id="installation">Installation</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Navigate to dbt project</span>
+<span class="hljs-built_in">cd</span> data/dbt/measure_js
+
+<span class="hljs-comment"># Install dbt</span>
+pip install dbt-bigquery
+
+<span class="hljs-comment"># Install dependencies</span>
+dbt deps
+
+<span class="hljs-comment"># Configure profile</span>
+<span class="hljs-built_in">cp</span> profiles.yml.example profiles.yml
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<p>Edit <code>profiles.yml</code>:</p>
+<pre><code class="language-yaml"><span class="hljs-attr">dbt_measure_js:</span>
+  <span class="hljs-attr">target:</span> <span class="hljs-string">dev</span>
+  <span class="hljs-attr">outputs:</span>
+    <span class="hljs-attr">dev:</span>
+      <span class="hljs-attr">type:</span> <span class="hljs-string">bigquery</span>
+      <span class="hljs-attr">method:</span> <span class="hljs-string">service-account</span>
+      <span class="hljs-attr">project:</span> <span class="hljs-string">your-gcp-project</span>
+      <span class="hljs-attr">dataset:</span> <span class="hljs-string">analytics_dev</span>
+      <span class="hljs-attr">location:</span> <span class="hljs-string">US</span>
+      <span class="hljs-attr">keyfile:</span> <span class="hljs-string">/path/to/service-account-key.json</span>
+      <span class="hljs-attr">threads:</span> <span class="hljs-number">4</span>
+      <span class="hljs-attr">timeout_seconds:</span> <span class="hljs-number">300</span>
+    <span class="hljs-attr">prod:</span>
+      <span class="hljs-attr">type:</span> <span class="hljs-string">bigquery</span>
+      <span class="hljs-attr">method:</span> <span class="hljs-string">service-account</span>
+      <span class="hljs-attr">project:</span> <span class="hljs-string">your-gcp-project</span>
+      <span class="hljs-attr">dataset:</span> <span class="hljs-string">analytics</span>
+      <span class="hljs-attr">location:</span> <span class="hljs-string">US</span>
+      <span class="hljs-attr">keyfile:</span> <span class="hljs-string">/path/to/service-account-key.json</span>
+      <span class="hljs-attr">threads:</span> <span class="hljs-number">8</span>
+      <span class="hljs-attr">timeout_seconds:</span> <span class="hljs-number">300</span>
+</code></pre>
+<h2 id="data-models">Data Models</h2>
+<h3 id="staging-models">Staging Models</h3>
+<h4 id="stagingevent_blocks"><code>staging.event_blocks</code></h4>
+<p>Groups events into time blocks for efficient processing.</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/staging/event_blocks.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  <span class="hljs-type">DATE</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> <span class="hljs-type">date</span>,
+  <span class="hljs-keyword">HOUR</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> <span class="hljs-keyword">hour</span>,
+  TIMESTAMP_TRUNC(<span class="hljs-type">timestamp</span>, <span class="hljs-keyword">HOUR</span>) <span class="hljs-keyword">as</span> hour_block,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> event_count
+<span class="hljs-keyword">FROM</span> {{ source(<span class="hljs-string">&#x27;raw&#x27;</span>, <span class="hljs-string">&#x27;events&#x27;</span>) }}
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>
+</code></pre>
+<h4 id="stagingevents_sessionated"><code>staging.events_sessionated</code></h4>
+<p>Adds session information to events.</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/staging/events_sessionated.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  <span class="hljs-operator">*</span>,
+  <span class="hljs-keyword">CASE</span>
+    <span class="hljs-keyword">WHEN</span> TIMESTAMP_DIFF(<span class="hljs-type">timestamp</span>, <span class="hljs-built_in">LAG</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">OVER</span> (
+      <span class="hljs-keyword">PARTITION</span> <span class="hljs-keyword">BY</span> client_id <span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-type">timestamp</span>
+    ), <span class="hljs-keyword">MINUTE</span>) <span class="hljs-operator">&gt;</span> <span class="hljs-number">30</span> <span class="hljs-keyword">THEN</span> <span class="hljs-number">1</span>
+    <span class="hljs-keyword">ELSE</span> <span class="hljs-number">0</span>
+  <span class="hljs-keyword">END</span> <span class="hljs-keyword">as</span> new_session,
+  <span class="hljs-built_in">SUM</span>(<span class="hljs-keyword">CASE</span>
+    <span class="hljs-keyword">WHEN</span> TIMESTAMP_DIFF(<span class="hljs-type">timestamp</span>, <span class="hljs-built_in">LAG</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">OVER</span> (
+      <span class="hljs-keyword">PARTITION</span> <span class="hljs-keyword">BY</span> client_id <span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-type">timestamp</span>
+    ), <span class="hljs-keyword">MINUTE</span>) <span class="hljs-operator">&gt;</span> <span class="hljs-number">30</span> <span class="hljs-keyword">THEN</span> <span class="hljs-number">1</span>
+    <span class="hljs-keyword">ELSE</span> <span class="hljs-number">0</span>
+  <span class="hljs-keyword">END</span>) <span class="hljs-keyword">OVER</span> (
+    <span class="hljs-keyword">PARTITION</span> <span class="hljs-keyword">BY</span> client_id <span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-type">timestamp</span>
+  ) <span class="hljs-keyword">as</span> session_number
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_cleaned&#x27;</span>) }}
+</code></pre>
+<h4 id="staginguser_map"><code>staging.user_map</code></h4>
+<p>Maps client IDs to user IDs for authenticated users.</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/staging/user_map.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  client_id,
+  user_id,
+  <span class="hljs-built_in">MIN</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> first_seen,
+  <span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> last_seen
+<span class="hljs-keyword">FROM</span> {{ source(<span class="hljs-string">&#x27;raw&#x27;</span>, <span class="hljs-string">&#x27;events&#x27;</span>) }}
+<span class="hljs-keyword">WHERE</span> user_id <span class="hljs-keyword">IS</span> <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">NULL</span>
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>, <span class="hljs-number">2</span>
+</code></pre>
+<h3 id="core-models">Core Models</h3>
+<h4 id="coreusers"><code>core.users</code></h4>
+<p>User-level analytics with engagement metrics.</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/core/users.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  client_id,
+  user_id,
+  <span class="hljs-built_in">MIN</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> first_seen,
+  <span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> last_seen,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> <span class="hljs-type">DATE</span>(<span class="hljs-type">timestamp</span>)) <span class="hljs-keyword">as</span> days_active,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> total_events,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> session_id) <span class="hljs-keyword">as</span> total_sessions,
+  <span class="hljs-built_in">AVG</span>(session_duration) <span class="hljs-keyword">as</span> avg_session_duration
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_sessionated&#x27;</span>) }}
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>, <span class="hljs-number">2</span>
+</code></pre>
+<h4 id="coresessions"><code>core.sessions</code></h4>
+<p>Session-level analytics with detailed session information.</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/core/sessions.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  session_id,
+  client_id,
+  user_id,
+  <span class="hljs-built_in">MIN</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> session_start,
+  <span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> session_end,
+  TIMESTAMP_DIFF(<span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>), <span class="hljs-built_in">MIN</span>(<span class="hljs-type">timestamp</span>), <span class="hljs-keyword">SECOND</span>) <span class="hljs-keyword">as</span> session_duration,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> pageviews,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> url) <span class="hljs-keyword">as</span> unique_pages,
+  <span class="hljs-built_in">ARRAY_AGG</span>(<span class="hljs-keyword">DISTINCT</span> event_name) <span class="hljs-keyword">as</span> events
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_sessionated&#x27;</span>) }}
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>
+</code></pre>
+<h4 id="coreclients"><code>core.clients</code></h4>
+<p>Client-level analytics for anonymous users.</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/core/clients.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  client_id,
+  <span class="hljs-built_in">MIN</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> first_seen,
+  <span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> last_seen,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> <span class="hljs-type">DATE</span>(<span class="hljs-type">timestamp</span>)) <span class="hljs-keyword">as</span> days_active,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> total_events,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> session_id) <span class="hljs-keyword">as</span> total_sessions
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_sessionated&#x27;</span>) }}
+<span class="hljs-keyword">WHERE</span> user_id <span class="hljs-keyword">IS</span> <span class="hljs-keyword">NULL</span>
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>
+</code></pre>
+<h3 id="mart-models">Mart Models</h3>
+<h4 id="martdaily_performance"><code>mart.daily_performance</code></h4>
+<p>Daily aggregated metrics for dashboard reporting.</p>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/mart/daily_performance.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  <span class="hljs-type">DATE</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> <span class="hljs-type">date</span>,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> client_id) <span class="hljs-keyword">as</span> daily_active_users,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> user_id) <span class="hljs-keyword">as</span> daily_active_registered_users,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> session_id) <span class="hljs-keyword">as</span> total_sessions,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> total_events,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">CASE</span> <span class="hljs-keyword">WHEN</span> event_name <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;pageview&#x27;</span> <span class="hljs-keyword">THEN</span> <span class="hljs-number">1</span> <span class="hljs-keyword">END</span>) <span class="hljs-keyword">as</span> pageviews,
+  <span class="hljs-built_in">AVG</span>(session_duration) <span class="hljs-keyword">as</span> avg_session_duration
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_sessionated&#x27;</span>) }}
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>
+</code></pre>
+<h2 id="running-the-pipeline">Running the Pipeline</h2>
+<h3 id="development">Development</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Run all models</span>
+dbt run
+
+<span class="hljs-comment"># Run specific model</span>
+dbt run --select staging.events_sessionated
+
+<span class="hljs-comment"># Run models with dependencies</span>
+dbt run --select +mart.daily_performance
+
+<span class="hljs-comment"># Run with full refresh</span>
+dbt run --full-refresh
+</code></pre>
+<h3 id="testing">Testing</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Run all tests</span>
+dbt <span class="hljs-built_in">test</span>
+
+<span class="hljs-comment"># Run specific test</span>
+dbt <span class="hljs-built_in">test</span> --select test_name
+
+<span class="hljs-comment"># Run data quality tests</span>
+dbt <span class="hljs-built_in">test</span> --select tag:data_quality
+</code></pre>
+<h3 id="documentation">Documentation</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Generate documentation</span>
+dbt docs generate
+
+<span class="hljs-comment"># Serve documentation</span>
+dbt docs serve
+</code></pre>
+<h2 id="data-quality">Data Quality</h2>
+<h3 id="tests">Tests</h3>
+<p>The pipeline includes comprehensive data quality tests:</p>
+<pre><code class="language-yaml"><span class="hljs-comment"># models/schema.yml</span>
+<span class="hljs-attr">version:</span> <span class="hljs-number">2</span>
+
+<span class="hljs-attr">models:</span>
+  <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">events_sessionated</span>
+    <span class="hljs-attr">description:</span> <span class="hljs-string">&quot;Events with session information&quot;</span>
+    <span class="hljs-attr">columns:</span>
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">client_id</span>
+        <span class="hljs-attr">description:</span> <span class="hljs-string">&quot;Unique client identifier&quot;</span>
+        <span class="hljs-attr">tests:</span>
+          <span class="hljs-bullet">-</span> <span class="hljs-string">not_null</span>
+          <span class="hljs-bullet">-</span> <span class="hljs-string">unique</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">timestamp</span>
+        <span class="hljs-attr">description:</span> <span class="hljs-string">&quot;Event timestamp&quot;</span>
+        <span class="hljs-attr">tests:</span>
+          <span class="hljs-bullet">-</span> <span class="hljs-string">not_null</span>
+          <span class="hljs-bullet">-</span> <span class="hljs-string">dbt_utils.is_timestamp</span>
+
+      <span class="hljs-bullet">-</span> <span class="hljs-attr">name:</span> <span class="hljs-string">session_id</span>
+        <span class="hljs-attr">description:</span> <span class="hljs-string">&quot;Session identifier&quot;</span>
+        <span class="hljs-attr">tests:</span>
+          <span class="hljs-bullet">-</span> <span class="hljs-string">not_null</span>
+</code></pre>
+<h3 id="custom-tests">Custom Tests</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- tests/assert_positive_session_duration.sql</span>
+<span class="hljs-keyword">SELECT</span>
+  session_id,
+  session_duration
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;sessions&#x27;</span>) }}
+<span class="hljs-keyword">WHERE</span> session_duration <span class="hljs-operator">&lt;</span> <span class="hljs-number">0</span>
+</code></pre>
+<h2 id="analytics-queries">Analytics Queries</h2>
+<h3 id="user-engagement">User Engagement</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- Daily Active Users</span>
+<span class="hljs-keyword">SELECT</span>
+  <span class="hljs-type">date</span>,
+  daily_active_users,
+  <span class="hljs-built_in">LAG</span>(daily_active_users) <span class="hljs-keyword">OVER</span> (<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-type">date</span>) <span class="hljs-keyword">as</span> prev_day_users,
+  (daily_active_users <span class="hljs-operator">-</span> <span class="hljs-built_in">LAG</span>(daily_active_users) <span class="hljs-keyword">OVER</span> (<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-type">date</span>)) <span class="hljs-operator">/</span>
+    <span class="hljs-built_in">LAG</span>(daily_active_users) <span class="hljs-keyword">OVER</span> (<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-type">date</span>) <span class="hljs-operator">*</span> <span class="hljs-number">100</span> <span class="hljs-keyword">as</span> growth_pct
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;daily_performance&#x27;</span>) }}
+<span class="hljs-keyword">WHERE</span> <span class="hljs-type">date</span> <span class="hljs-operator">&gt;=</span> DATE_SUB(<span class="hljs-built_in">CURRENT_DATE</span>(), <span class="hljs-type">INTERVAL</span> <span class="hljs-number">30</span> <span class="hljs-keyword">DAY</span>)
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> <span class="hljs-type">date</span>;
+</code></pre>
+<h3 id="session-analysis">Session Analysis</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- Session Duration Distribution</span>
+<span class="hljs-keyword">SELECT</span>
+  <span class="hljs-keyword">CASE</span>
+    <span class="hljs-keyword">WHEN</span> session_duration <span class="hljs-operator">&lt;</span> <span class="hljs-number">60</span> <span class="hljs-keyword">THEN</span> <span class="hljs-string">&#x27;0-1 min&#x27;</span>
+    <span class="hljs-keyword">WHEN</span> session_duration <span class="hljs-operator">&lt;</span> <span class="hljs-number">300</span> <span class="hljs-keyword">THEN</span> <span class="hljs-string">&#x27;1-5 min&#x27;</span>
+    <span class="hljs-keyword">WHEN</span> session_duration <span class="hljs-operator">&lt;</span> <span class="hljs-number">900</span> <span class="hljs-keyword">THEN</span> <span class="hljs-string">&#x27;5-15 min&#x27;</span>
+    <span class="hljs-keyword">WHEN</span> session_duration <span class="hljs-operator">&lt;</span> <span class="hljs-number">3600</span> <span class="hljs-keyword">THEN</span> <span class="hljs-string">&#x27;15-60 min&#x27;</span>
+    <span class="hljs-keyword">ELSE</span> <span class="hljs-string">&#x27;60+ min&#x27;</span>
+  <span class="hljs-keyword">END</span> <span class="hljs-keyword">as</span> duration_bucket,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> session_count,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-operator">*</span> <span class="hljs-number">100.0</span> <span class="hljs-operator">/</span> <span class="hljs-built_in">SUM</span>(<span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>)) <span class="hljs-keyword">OVER</span> () <span class="hljs-keyword">as</span> percentage
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;sessions&#x27;</span>) }}
+<span class="hljs-keyword">WHERE</span> session_start <span class="hljs-operator">&gt;=</span> TIMESTAMP_SUB(<span class="hljs-built_in">CURRENT_TIMESTAMP</span>(), <span class="hljs-type">INTERVAL</span> <span class="hljs-number">7</span> <span class="hljs-keyword">DAY</span>)
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> session_count <span class="hljs-keyword">DESC</span>;
+</code></pre>
+<h3 id="page-performance">Page Performance</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- Top Pages by Views</span>
+<span class="hljs-keyword">SELECT</span>
+  url,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> pageviews,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> client_id) <span class="hljs-keyword">as</span> unique_visitors,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-operator">/</span> <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> client_id) <span class="hljs-keyword">as</span> avg_views_per_visitor
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_sessionated&#x27;</span>) }}
+<span class="hljs-keyword">WHERE</span> event_name <span class="hljs-operator">=</span> <span class="hljs-string">&#x27;pageview&#x27;</span>
+  <span class="hljs-keyword">AND</span> <span class="hljs-type">timestamp</span> <span class="hljs-operator">&gt;=</span> TIMESTAMP_SUB(<span class="hljs-built_in">CURRENT_TIMESTAMP</span>(), <span class="hljs-type">INTERVAL</span> <span class="hljs-number">7</span> <span class="hljs-keyword">DAY</span>)
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> pageviews <span class="hljs-keyword">DESC</span>
+LIMIT <span class="hljs-number">20</span>;
+</code></pre>
+<h3 id="geographic-analysis">Geographic Analysis</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- Traffic by Country</span>
+<span class="hljs-keyword">SELECT</span>
+  location.country,
+  location.country_code,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-operator">*</span>) <span class="hljs-keyword">as</span> events,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> client_id) <span class="hljs-keyword">as</span> unique_users,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> session_id) <span class="hljs-keyword">as</span> sessions
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_sessionated&#x27;</span>) }}
+<span class="hljs-keyword">WHERE</span> <span class="hljs-type">timestamp</span> <span class="hljs-operator">&gt;=</span> TIMESTAMP_SUB(<span class="hljs-built_in">CURRENT_TIMESTAMP</span>(), <span class="hljs-type">INTERVAL</span> <span class="hljs-number">30</span> <span class="hljs-keyword">DAY</span>)
+  <span class="hljs-keyword">AND</span> location.country <span class="hljs-keyword">IS</span> <span class="hljs-keyword">NOT</span> <span class="hljs-keyword">NULL</span>
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>, <span class="hljs-number">2</span>
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> events <span class="hljs-keyword">DESC</span>;
+</code></pre>
+<h2 id="scheduling">Scheduling</h2>
+<h3 id="dbt-cloud">dbt Cloud</h3>
+<p>Configure dbt Cloud jobs for automated runs:</p>
+<pre><code class="language-yaml"><span class="hljs-comment"># dbt_project.yml</span>
+<span class="hljs-attr">models:</span>
+  <span class="hljs-attr">dbt_measure_js:</span>
+    <span class="hljs-attr">staging:</span>
+      <span class="hljs-string">+materialized:</span> <span class="hljs-string">view</span>
+    <span class="hljs-attr">core:</span>
+      <span class="hljs-string">+materialized:</span> <span class="hljs-string">table</span>
+    <span class="hljs-attr">mart:</span>
+      <span class="hljs-string">+materialized:</span> <span class="hljs-string">table</span>
+      <span class="hljs-string">+schedule:</span> <span class="hljs-string">&quot;0 2 * * *&quot;</span>  <span class="hljs-comment"># Daily at 2 AM</span>
+</code></pre>
+<h3 id="manual-scheduling">Manual Scheduling</h3>
+<pre><code class="language-bash"><span class="hljs-comment"># Create cron job</span>
+0 2 * * * <span class="hljs-built_in">cd</span> /path/to/dbt/project &amp;&amp; dbt run --target prod
+</code></pre>
+<h2 id="performance-optimization">Performance Optimization</h2>
+<h3 id="incremental-models">Incremental Models</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/core/users_incremental.sql</span>
+{{ config(materialized<span class="hljs-operator">=</span><span class="hljs-string">&#x27;incremental&#x27;</span>) }}
+
+<span class="hljs-keyword">SELECT</span>
+  client_id,
+  user_id,
+  <span class="hljs-built_in">MIN</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> first_seen,
+  <span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> last_seen,
+  <span class="hljs-built_in">COUNT</span>(<span class="hljs-keyword">DISTINCT</span> <span class="hljs-type">DATE</span>(<span class="hljs-type">timestamp</span>)) <span class="hljs-keyword">as</span> days_active
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;events_sessionated&#x27;</span>) }}
+
+{<span class="hljs-operator">%</span> if is_incremental() <span class="hljs-operator">%</span>}
+  <span class="hljs-keyword">WHERE</span> <span class="hljs-type">timestamp</span> <span class="hljs-operator">&gt;</span> (<span class="hljs-keyword">SELECT</span> <span class="hljs-built_in">MAX</span>(last_seen) <span class="hljs-keyword">FROM</span> {{ this }})
+{<span class="hljs-operator">%</span> endif <span class="hljs-operator">%</span>}
+
+<span class="hljs-keyword">GROUP</span> <span class="hljs-keyword">BY</span> <span class="hljs-number">1</span>, <span class="hljs-number">2</span>
+</code></pre>
+<h3 id="partitioning">Partitioning</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- models/mart/daily_performance_partitioned.sql</span>
+{{ config(
+  materialized<span class="hljs-operator">=</span><span class="hljs-string">&#x27;table&#x27;</span>,
+  partition_by<span class="hljs-operator">=</span>{
+    &quot;field&quot;: &quot;date&quot;,
+    &quot;data_type&quot;: &quot;date&quot;,
+    &quot;granularity&quot;: &quot;day&quot;
+  }
+) }}
+
+<span class="hljs-keyword">SELECT</span> <span class="hljs-operator">*</span> <span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;daily_performance&#x27;</span>) }}
+</code></pre>
+<h2 id="monitoring">Monitoring</h2>
+<h3 id="model-performance">Model Performance</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- Check model run times</span>
+<span class="hljs-keyword">SELECT</span>
+  model_name,
+  run_started_at,
+  run_completed_at,
+  TIMESTAMP_DIFF(run_completed_at, run_started_at, <span class="hljs-keyword">SECOND</span>) <span class="hljs-keyword">as</span> duration_seconds
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;dbt_run_results&#x27;</span>) }}
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> run_started_at <span class="hljs-keyword">DESC</span>
+LIMIT <span class="hljs-number">10</span>;
+</code></pre>
+<h3 id="data-freshness">Data Freshness</h3>
+<pre><code class="language-sql"><span class="hljs-comment">-- Check data freshness</span>
+<span class="hljs-keyword">SELECT</span>
+  <span class="hljs-string">&#x27;events&#x27;</span> <span class="hljs-keyword">as</span> table_name,
+  <span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>) <span class="hljs-keyword">as</span> latest_record,
+  TIMESTAMP_DIFF(<span class="hljs-built_in">CURRENT_TIMESTAMP</span>(), <span class="hljs-built_in">MAX</span>(<span class="hljs-type">timestamp</span>), <span class="hljs-keyword">HOUR</span>) <span class="hljs-keyword">as</span> hours_behind
+<span class="hljs-keyword">FROM</span> {{ source(<span class="hljs-string">&#x27;raw&#x27;</span>, <span class="hljs-string">&#x27;events&#x27;</span>) }}
+
+<span class="hljs-keyword">UNION</span> <span class="hljs-keyword">ALL</span>
+
+<span class="hljs-keyword">SELECT</span>
+  <span class="hljs-string">&#x27;daily_performance&#x27;</span> <span class="hljs-keyword">as</span> table_name,
+  <span class="hljs-built_in">MAX</span>(<span class="hljs-type">date</span>) <span class="hljs-keyword">as</span> latest_record,
+  TIMESTAMP_DIFF(<span class="hljs-built_in">CURRENT_TIMESTAMP</span>(), <span class="hljs-built_in">MAX</span>(<span class="hljs-type">date</span>), <span class="hljs-keyword">HOUR</span>) <span class="hljs-keyword">as</span> hours_behind
+<span class="hljs-keyword">FROM</span> {{ <span class="hljs-keyword">ref</span>(<span class="hljs-string">&#x27;daily_performance&#x27;</span>) }};
+</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="common-issues">Common Issues</h3>
+<p><strong>Model failures:</strong></p>
+<pre><code class="language-bash"><span class="hljs-comment"># Check model logs</span>
+dbt run --select model_name --debug
+
+<span class="hljs-comment"># Validate SQL syntax</span>
+dbt compile --select model_name
+</code></pre>
+<p><strong>Performance issues:</strong></p>
+<pre><code class="language-sql"><span class="hljs-comment">-- Check query performance</span>
+<span class="hljs-keyword">SELECT</span>
+  creation_time,
+  query,
+  total_bytes_processed,
+  total_slot_ms
+<span class="hljs-keyword">FROM</span> `region<span class="hljs-operator">-</span>us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+<span class="hljs-keyword">WHERE</span> creation_time <span class="hljs-operator">&gt;=</span> TIMESTAMP_SUB(<span class="hljs-built_in">CURRENT_TIMESTAMP</span>(), <span class="hljs-type">INTERVAL</span> <span class="hljs-number">1</span> <span class="hljs-keyword">DAY</span>)
+<span class="hljs-keyword">ORDER</span> <span class="hljs-keyword">BY</span> creation_time <span class="hljs-keyword">DESC</span>;
+</code></pre>
+<p><strong>Data quality issues:</strong></p>
+<pre><code class="language-bash"><span class="hljs-comment"># Run specific tests</span>
+dbt <span class="hljs-built_in">test</span> --select test_name
+
+<span class="hljs-comment"># Check for null values</span>
+dbt run-operation check_nulls --args <span class="hljs-string">&#x27;{table_name: events_sessionated}&#x27;</span>
+</code></pre>
+<h2 id="best-practices">Best Practices</h2>
+<h3 id="1-model-organization">1. Model Organization</h3>
+<ul>
+<li>Keep staging models simple and focused</li>
+<li>Use core models for business logic</li>
+<li>Create mart models for specific use cases</li>
+</ul>
+<h3 id="2-performance">2. Performance</h3>
+<ul>
+<li>Use incremental models for large tables</li>
+<li>Implement proper partitioning</li>
+<li>Monitor query performance regularly</li>
+</ul>
+<h3 id="3-testing">3. Testing</h3>
+<ul>
+<li>Test all critical models</li>
+<li>Use custom tests for business rules</li>
+<li>Monitor data quality metrics</li>
+</ul>
+<h3 id="4-documentation">4. Documentation</h3>
+<ul>
+<li>Document all models and columns</li>
+<li>Include business context</li>
+<li>Keep documentation up to date</li>
+</ul>
+<hr>
+<p><strong>Need help?</strong> Check the <a href="./data-schema.html">Data Schema</a> or <a href="mailto:support@9fwr.com">contact support</a>.</p>
+
+            
+            
+        </body>
+        </html>
