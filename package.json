@@ -1,0 +1,33 @@
+{
+  "name": "measure-js",
+  "scripts": {
+    "dev": "bun run --watch src/api/index.ts",
+    "build": "tsc",
+    "test": "bun test",
+    "test:unit": "bun test tests/unit/",
+    "test:integration": "bun test tests/integration/",
+    "test:e2e": "bun test tests/e2e/",
+    "test:watch": "bun test --watch",
+    "start": "bun run src/api/index.ts"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "latest",
+    "@google-cloud/firestore": "latest",
+    "@google-cloud/functions-framework": "latest",
+    "@google-cloud/logging": "latest",
+    "@maxmind/geoip2-node": "^6.0.0",
+    "cookie-parser": "latest",
+    "dotenv": "latest",
+    "elysia": "latest",
+    "firebase-admin": "^13.2.0",
+    "firebase-tools": "^13.33.0",
+    "hono": "latest",
+    "useragent": "latest",
+    "uuid": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "@types/node": "latest"
+  }
+}
