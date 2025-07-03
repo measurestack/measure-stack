@@ -22,6 +22,12 @@ fi
 # Check if required environment variables are set
 required_vars=("GCP_PROJECT_ID" "REGION" "GCP_DATASET_ID" "GCP_TABLE_ID" "SERVICE_NAME" "CLIENT_ID_COOKIE_NAME" "HASH_COOKIE_NAME" "DAILY_SALT" "GEO_ACCOUNT" "GEO_KEY" "CORS_ORIGIN")
 
+# Set default values for optional rate limiting variables
+RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-60000}
+RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-100}
+RATE_LIMIT_SKIP_SUCCESS=${RATE_LIMIT_SKIP_SUCCESS:-false}
+RATE_LIMIT_SKIP_FAILED=${RATE_LIMIT_SKIP_FAILED:-false}
+
 for var in "${required_vars[@]}"; do
   if [ -z "${!var}" ]; then
     echo "❌ Error: Environment variable $var is not set."
@@ -204,10 +210,15 @@ bq update --source dataset_access.json "$GCP_PROJECT_ID:$GCP_DATASET_ID"
 rm dataset_temp.json dataset_access.json
 
 
-### Firestore Accesshow
+### Firestore Access
+echo "🔑 Assigning Firestore access to $SA_EMAIL..."
+
+# Since we know there are conditional bindings, always use the conditional approach
+echo "✅ Adding Firestore access with conditional binding..."
 gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
   --member="serviceAccount:$SA_EMAIL" \
-  --role="roles/datastore.user"
+  --role="roles/datastore.user" \
+  --condition="expression=resource.name.startsWith('projects/$GCP_PROJECT_ID/databases/default'),title=FirestoreDatabaseAccess"
 
 ## Cloud Run Access
 ## Create the custom role (if it doesn't exist)
@@ -231,21 +242,15 @@ gcloud builds submit --tag "$IMAGE_NAME" .
 
 # Deploy to Cloud Run
 echo "🚀 Deploying to Cloud Run..."
+
+# Deploy to Cloud Run with environment variables
 gcloud run deploy "$SERVICE_NAME" \
     --image="$IMAGE_NAME" \
     --region="$REGION" \
     --allow-unauthenticated \
     --port 3000 \
     --service-account="$SA_EMAIL" \
-    --set-env-vars "GCP_PROJECT_ID=$GCP_PROJECT_ID" \
-    --set-env-vars "GCP_DATASET_ID=$GCP_DATASET_ID" \
-    --set-env-vars "GCP_TABLE_ID=$GCP_TABLE_ID" \
-    --set-env-vars "CLIENT_ID_COOKIE_NAME=$CLIENT_ID_COOKIE_NAME" \
-    --set-env-vars "HASH_COOKIE_NAME=$HASH_COOKIE_NAME" \
-    --set-env-vars "DAILY_SALT=$DAILY_SALT" \
-    --set-env-vars "GEO_ACCOUNT=$GEO_ACCOUNT" \
-    --set-env-vars "GEO_KEY=$GEO_KEY" \
-    --set-env-vars "CORS_ORIGIN=$CORS_ORIGIN"
+    --set-env-vars=^--^GCP_PROJECT_ID=$GCP_PROJECT_ID--GCP_DATASET_ID=$GCP_DATASET_ID--GCP_TABLE_ID=$GCP_TABLE_ID--CLIENT_ID_COOKIE_NAME=$CLIENT_ID_COOKIE_NAME--HASH_COOKIE_NAME=$HASH_COOKIE_NAME--DAILY_SALT=$DAILY_SALT--GEO_ACCOUNT=$GEO_ACCOUNT--GEO_KEY=$GEO_KEY--CORS_ORIGIN=$CORS_ORIGIN--RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS--RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS--RATE_LIMIT_SKIP_SUCCESS=$RATE_LIMIT_SKIP_SUCCESS--RATE_LIMIT_SKIP_FAILED=$RATE_LIMIT_SKIP_FAILED
 
 echo "✅ Deployment complete!"
 echo "🌍 Your app is live at: $(gcloud run services describe $SERVICE_NAME --region $REGION --format='value(status.url)')"

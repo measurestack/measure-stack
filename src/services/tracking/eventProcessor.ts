@@ -33,9 +33,11 @@ export class EventProcessor {
       const now = new Date().toISOString();
       const ip = getClientIP(req.header(), getConnInfo(context).remote?.address);
 
+      // Set Tracking parameter time, event type, and user-agent data
       trackingData.ts = trackingData.ts || now;
       trackingData.et = trackingData.et || "event";
       trackingData.ua = trackingData.ua || req.header('user-agent');
+      // Try to identify the user, by cheking if clientId is already provided, if its not -> get id from cookie
       trackingData.c = trackingData.c || getCookie(context, config.clientIdCookieName);
       trackingData.h = trackingData.h || getHashh(ip, trackingData.ua || '');
       trackingData.h1 = trackingData.h1 || getCookie(context, config.hashCookieName) || trackingData.h;
@@ -43,9 +45,11 @@ export class EventProcessor {
 
       // Handle consent events first
       if (trackingData.en === 'consent') {
-        await this.handleConsent(trackingData, context);
-        // Always process consent events to track consent changes
-        await this.processAndStoreEvent(trackingData);
+        const consentChanged = await this.handleConsent(trackingData, context);
+        // Only process consent events if consent actually changed
+        if (consentChanged) {
+          await this.processAndStoreEvent(trackingData);
+        }
       } else {
         // For non-consent events, check if user has given consent
         const hasConsent = this.checkUserConsent(context);
@@ -92,7 +96,17 @@ export class EventProcessor {
     return !!clientId;
   }
 
-  private async handleConsent(trackingData: TrackingEvent, context: Context): Promise<void> {
+    private async handleConsent(trackingData: TrackingEvent, context: Context): Promise<boolean> {
+    // Check if consent has actually changed
+    const existingConsent = getCookie(context, 'measure_consent');
+    const newConsent = JSON.stringify(trackingData.p);
+
+    // If consent hasn't changed, don't process the event
+    if (existingConsent === newConsent) {
+      console.log('Consent unchanged, skipping consent event');
+      return false;
+    }
+
     if (trackingData.p?.id === true) {
       const parts = context.env.hostname.split('.');
       let domain;
@@ -106,7 +120,7 @@ export class EventProcessor {
 
       setCookie(context, config.clientIdCookieName, trackingData.c, {
         maxAge: 31536000,
-        domain: '.9fwr.com',
+        domain: config.cookieDomain,
         sameSite: 'none',
         path: '/',
         secure: true
@@ -114,16 +128,16 @@ export class EventProcessor {
 
       setCookie(context, config.hashCookieName, trackingData.h1 || '', {
         maxAge: 31536000,
-        domain: '.9fwr.com',
+        domain: config.cookieDomain,
         sameSite: 'none',
         path: '/',
         secure: true
       });
 
       // Store consent preferences
-      setCookie(context, 'measure_consent', JSON.stringify(trackingData.p), {
+      setCookie(context, 'measure_consent', newConsent, {
         maxAge: 31536000,
-        domain: '.9fwr.com',
+        domain: config.cookieDomain,
         sameSite: 'none',
         path: '/',
         secure: true
@@ -133,6 +147,8 @@ export class EventProcessor {
       deleteCookie(context, config.hashCookieName);
       deleteCookie(context, 'measure_consent');
     }
+
+    return true; // Consent was changed
   }
 
   private async processAndStoreEvent(trackingData: TrackingEvent): Promise<void> {

@@ -40,6 +40,10 @@
     "type": "STRING"
   },
   {
+    "name": "consent_given",
+    "type": "BOOLEAN"
+  },
+  {
     "name": "device",
     "type": "RECORD",
     "fields": [

@@ -30,3 +30,4 @@
 # Deployment scripts
 deploy_complex.sh
 .vscode
+archive/
