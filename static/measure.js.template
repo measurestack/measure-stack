@@ -5,7 +5,7 @@
 
 // Define _measure library
 var _measure = (function() {
-  var endpoint = "https://measure-app-johql2fxpq-ey.a.run.app/events";
+  var endpoint = "{{ endpoint }}/events";
 
   // Function to send data to the endpoint
   function sendData(data) {
