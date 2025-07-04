@@ -31,3 +31,7 @@
 deploy_complex.sh
 .vscode
 archive/
+app.log
+
+**/scripts/dbt_deploy.log
+**/scripts/deploy.log
