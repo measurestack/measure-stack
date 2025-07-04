@@ -456,26 +456,26 @@ show_deployment_success() {
     log "Service URL: $service_url"
 
     # Show user-friendly implementation instructions
-    echo ""
-    echo "🎉 Deployment successful! Here's how to use the tracking SDK:"
-    echo ""
-    echo "📋 Copy this code into your website:"
-    echo "----------------------------------------"
-    echo "<script src=\"$service_url/measure.js\"></script>"
-    echo "<script>"
-    echo "  _measure.pageview();"
-    echo "  _measure.event('button_click', { button_id: 'signup' });"
-    echo "</script>"
-    echo "----------------------------------------"
-    echo ""
-    echo "📊 Available tracking methods:"
-    echo "  • _measure.pageview() - Track page views"
-    echo "  • _measure.event('event_name', { data: 'value' }) - Track custom events"
-    echo "  • _measure.consent({ id: true }) - Handle user consent"
-    echo ""
-    echo "🔗 SDK URL: $service_url/measure.js"
-    echo "📈 Events endpoint: $service_url/events"
-    echo ""
+    log ""
+    log "🎉 Deployment successful! Here's how to use the tracking SDK:"
+    log ""
+    log "📋 Copy this code into your website:"
+    log "----------------------------------------"
+    log "<script src=\"$service_url/measure.js\"></script>"
+    log "<script>"
+    log "  _measure.pageview();"
+    log "  _measure.event('button_click', { button_id: 'signup' });"
+    log "</script>"
+    log "----------------------------------------"
+    log ""
+    log "📊 Available tracking methods:"
+    log "  • _measure.pageview() - Track page views"
+    log "  • _measure.event('event_name', { data: 'value' }) - Track custom events"
+    log "  • _measure.consent({ id: true }) - Handle user consent"
+    log ""
+    log "🔗 SDK URL: $service_url/measure.js"
+    log "📈 Events endpoint: $service_url/events"
+    log ""
 }
 
 
@@ -507,7 +507,14 @@ main() {
 
     # Verify deployment
     health_check
-    show_deployment_success
+
+    # Get service URL for success message
+    local service_url
+    service_url=$(gcloud run services describe "$SERVICE_NAME" \
+        --region "$REGION" \
+        --format='value(status.url)')
+
+    show_deployment_success "$service_url"
 
     log "Deployment process completed successfully!"
     log "Check the full log at: $LOG_FILE"
@@ -548,7 +555,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             error "Unknown option: $1"
-            ;;
     esac
 done
 
