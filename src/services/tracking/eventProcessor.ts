@@ -37,10 +37,7 @@ export class EventProcessor {
       trackingData.ts = trackingData.ts || now;
       trackingData.et = trackingData.et || "event";
       trackingData.ua = trackingData.ua || req.header('user-agent');
-      // Try to identify the user, by cheking if clientId is already provided, if its not -> get id from cookie
-      trackingData.c = trackingData.c || getCookie(context, config.clientIdCookieName);
       trackingData.h = trackingData.h || getHashh(ip, trackingData.ua || '');
-      trackingData.h1 = trackingData.h1 || getCookie(context, config.hashCookieName) || trackingData.h;
       trackingData.ch = ip;
 
       // Handle consent events first
@@ -48,12 +45,22 @@ export class EventProcessor {
         const consentChanged = await this.handleConsent(trackingData, context);
         // Only process consent events if consent actually changed
         if (consentChanged) {
-          await this.processAndStoreEvent(trackingData);
+          if (trackingData.p?.id === true) {
+            await this.processAndStoreEvent(trackingData);
+          }
+          // If the user declines, we need to delete the Hash, otherwise it would be sent even if consent was not given
+          else {
+            trackingData.h = undefined;
+            await this.processAndStoreEventAnonymously(trackingData);
+          }
         }
       } else {
         // For non-consent events, check if user has given consent
         const hasConsent = this.checkUserConsent(context);
         if (hasConsent) {
+          // Only set client ID if consent is given
+          trackingData.c = trackingData.c || getCookie(context, config.clientIdCookieName);
+          trackingData.h1 = trackingData.h1 || getCookie(context, config.hashCookieName) || trackingData.h;
           // Process and store event data with full tracking (client ID)
           await this.processAndStoreEvent(trackingData);
         } else {
@@ -74,18 +81,19 @@ export class EventProcessor {
   }
 
   private checkUserConsent(context: Context): boolean {
-    // Check if client ID cookie exists (indicates consent was given)
-    const clientId = getCookie(context, config.clientIdCookieName);
-
-    // Also check for consent cookie if it exists
+    // First check for consent cookie - this takes priority
     const consentCookie = getCookie(context, 'measure_consent');
 
     if (consentCookie) {
       try {
         const consentData = JSON.parse(consentCookie);
-        // Check if analytics consent is explicitly false
-        if (consentData.analytics === false) {
+        // If any consent type is explicitly false, deny consent
+        if (consentData.id === false || consentData.analytics === false) {
           return false;
+        }
+        // If consent is explicitly granted, allow tracking
+        if (consentData.id === true) {
+          return true;
         }
       } catch (error) {
         // If consent cookie is malformed, fall back to client ID check
@@ -93,6 +101,8 @@ export class EventProcessor {
       }
     }
 
+    // Fallback: Check if client ID cookie exists (legacy behavior)
+    const clientId = getCookie(context, config.clientIdCookieName);
     return !!clientId;
   }
 
@@ -108,16 +118,9 @@ export class EventProcessor {
     }
 
     if (trackingData.p?.id === true) {
-      const parts = context.env.hostname.split('.');
-      let domain;
-      if (parts.length > 1) {
-        domain = '.' + parts.slice(-2).join('.');
-      } else {
-        domain = parts[0];
-      }
-
       trackingData.c = trackingData.c || uuidv4();
 
+      // Set a cookie that contains the users client ID
       setCookie(context, config.clientIdCookieName, trackingData.c, {
         maxAge: 31536000,
         domain: config.cookieDomain,
@@ -126,6 +129,7 @@ export class EventProcessor {
         secure: true
       });
 
+      // Set another cookie that contains the Users Hash
       setCookie(context, config.hashCookieName, trackingData.h1 || '', {
         maxAge: 31536000,
         domain: config.cookieDomain,
@@ -143,9 +147,19 @@ export class EventProcessor {
         secure: true
       });
     } else if (trackingData.p?.id === false) {
-      deleteCookie(context, config.clientIdCookieName);
-      deleteCookie(context, config.hashCookieName);
-      deleteCookie(context, 'measure_consent');
+      // Delete cookies with the same domain settings they were set with
+      deleteCookie(context, config.clientIdCookieName, {
+        domain: config.cookieDomain,
+        path: '/'
+      });
+      deleteCookie(context, config.hashCookieName, {
+        domain: config.cookieDomain,
+        path: '/'
+      });
+      deleteCookie(context, 'measure_consent', {
+        domain: config.cookieDomain,
+        path: '/'
+      });
     }
 
     return true; // Consent was changed
@@ -170,7 +184,7 @@ export class EventProcessor {
           client_id: trackingData.c || '',
           hash: trackingData.h || '',
           user_id: trackingData.u,
-          consent_given: true,
+          consent_given: !!trackingData.c,
           device: {
             type: userAgentParsed.device.family,
             brand: userAgentParsed.device.brand,

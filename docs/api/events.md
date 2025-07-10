@@ -1,6 +1,6 @@
 # Events API
 
-The Events API is the core endpoint for tracking user interactions and pageviews in Measure.js. It handles event processing, user identification, and data storage.
+The Events API is the core endpoint for tracking user interactions and pageviews in Measure.js. It handles event processing, user identification, and data storage with built-in rate limiting and privacy protection.
 
 ## Endpoint
 
@@ -20,6 +20,7 @@ Both GET and POST methods are supported for maximum compatibility.
 | `Content-Type` | No | `application/json` (for POST requests) |
 | `User-Agent` | No | Browser user agent (auto-detected) |
 | `Cookie` | No | Client ID and hash cookies |
+| `Origin` | No | Origin for CORS validation |
 
 ### Request Body
 
@@ -64,6 +65,45 @@ The API accepts data in multiple formats:
   "error": "Error message",
   "code": "ERROR_CODE"
 }
+```
+
+### Rate Limit Response
+
+```json
+{
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded. Please try again later.",
+  "retryAfter": 60
+}
+```
+
+## Rate Limiting
+
+The API implements configurable rate limiting to prevent abuse:
+
+### Default Limits
+
+- **Window**: 1 minute (60,000ms)
+- **Max Requests**: 100 requests per window
+- **Burst Protection**: Configurable burst limits
+
+### Rate Limit Headers
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests per window |
+| `X-RateLimit-Remaining` | Remaining requests in current window |
+| `X-RateLimit-Reset` | Time when the rate limit resets |
+
+### Configuration
+
+Rate limiting can be configured via environment variables:
+
+```env
+RATE_LIMIT_WINDOW_MS=60000      # Time window in milliseconds
+RATE_LIMIT_MAX_REQUESTS=100     # Maximum requests per window
+RATE_LIMIT_SKIP_SUCCESS=true    # Skip rate limiting for successful requests
+RATE_LIMIT_SKIP_FAILED=false    # Skip rate limiting for failed requests
 ```
 
 ## Event Types
@@ -194,47 +234,35 @@ The API automatically enriches events with:
 - **Cookie Control**: Manages tracking cookies based on consent
 - **Data Minimization**: Only collects necessary data
 
-## Rate Limiting
-
-The API implements rate limiting to prevent abuse and protect against excessive usage:
-
-- **Default**: 100 requests per minute per IP address
-- **Window**: 1-minute sliding window
-- **Headers**: Rate limit information included in response headers
-- **Response**: 429 status code when limit exceeded
-
-### Rate Limit Headers
-
-```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 2024-01-15T10:30:00.000Z
-```
-
-### Configuration
-
-Rate limiting can be configured via environment variables:
-
-```bash
-RATE_LIMIT_WINDOW_MS=60000      # Time window in milliseconds
-RATE_LIMIT_MAX_REQUESTS=100     # Max requests per window
-RATE_LIMIT_SKIP_SUCCESS=false   # Skip rate limiting for successful requests
-RATE_LIMIT_SKIP_FAILED=false    # Skip rate limiting for failed requests
-```
-
 ## CORS Support
 
 The API supports Cross-Origin Resource Sharing (CORS):
 
-```javascript
-// Configured origins
-const allowedOrigins = [
-  'https://yourdomain.com',
-  'https://www.yourdomain.com'
-];
+### Configuration
 
-// Credentials support
-xhr.withCredentials = true;
+```typescript
+cors: {
+  origins: ['https://yourdomain.com', 'https://www.yourdomain.com'],
+  allowMethods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true,
+}
+```
+
+### Environment Variables
+
+```env
+CORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com
+```
+
+### Preflight Requests
+
+The API automatically handles CORS preflight requests:
+
+```bash
+curl -X OPTIONS https://your-domain.com/events \
+  -H "Origin: https://yourdomain.com" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type"
 ```
 
 ## Error Handling
@@ -259,6 +287,9 @@ function sendEvent(eventName, parameters) {
   xhr.onload = function() {
     if (xhr.status === 200) {
       console.log('Event sent successfully');
+    } else if (xhr.status === 429) {
+      const retryAfter = xhr.getResponseHeader('Retry-After');
+      console.log(`Rate limited. Retry after ${retryAfter} seconds`);
     } else {
       console.error('Failed to send event:', xhr.status);
     }
@@ -302,6 +333,18 @@ curl -X POST https://your-domain.com/events \
   }'
 ```
 
+### Test Rate Limiting
+
+```bash
+# Send multiple requests quickly to test rate limiting
+for i in {1..110}; do
+  curl -X POST https://your-domain.com/events \
+    -H "Content-Type: application/json" \
+    -d "{\"en\":\"rate_test_$i\",\"url\":\"https://example.com\"}" &
+done
+wait
+```
+
 ### Verify Data Storage
 
 ```sql
@@ -338,12 +381,14 @@ LIMIT 10;
 - Send events asynchronously
 - Implement retry logic for failed requests
 - Batch events when possible
+- Respect rate limits
 
 ### 4. Privacy
 
 - Always respect user consent
 - Minimize data collection
 - Document your tracking practices
+- Use privacy-preserving techniques
 
 ## Examples
 
@@ -396,6 +441,43 @@ _measure.event('time_on_page', {
   page: 'product-page'
 });
 ```
+
+### Form Tracking
+
+```javascript
+// Form start
+_measure.event('form_start', {
+  form_id: 'contact_form',
+  form_type: 'contact'
+});
+
+// Form completion
+_measure.event('form_complete', {
+  form_id: 'contact_form',
+  form_type: 'contact',
+  completion_time: 45
+});
+```
+
+## Monitoring
+
+### Health Checks
+
+```bash
+# Check API health
+curl https://your-domain.com/health
+
+# Check rate limit status
+curl -I https://your-domain.com/events
+```
+
+### Logs
+
+Monitor application logs for:
+- Rate limit violations
+- Error rates
+- Performance metrics
+- Data processing issues
 
 ---
 
