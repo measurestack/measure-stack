@@ -2,10 +2,50 @@
 // we could dynamically change the endpoint by checking the host URL (slower)
 // other way -> while deploying -> the deploy url should be clear we could check the endpoint
 // at glcoud _> you can define a subdomain for the tracking -> ask the user for his preferred URL
+<script>
+(function() {
+  var endpoint = "https://measure-app-exukvg5v4a-ey.a.run.app/events";
+
+  // Function to send data to the endpoint
+  function sendData(data) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', endpoint, true);
+    xhr.withCredentials = true; // allow cookie to be set
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(JSON.stringify(data));
+  }
+
+  // Create _measure object immediately
+  window._measure = {
+    event: function(eventName, parameters) {
+      var data = {
+        en: eventName,
+        url: window.location.href,
+        r: document.referrer,
+        p: parameters
+      };
+      sendData(data);
+    },
+
+    pageview: function(parameters) {
+      this.event('pageview', parameters);
+    },
+
+    consent: function(consent) {
+      // consent should be an object with "[consent_type]": true/false key value pairs. the consent_type "id" is the only pre-defined one which is used to set a client_id cookie by the server. Other consents can be defined and may be used defined later
+      this.event('consent', consent);
+    }
+  };
+
+  // Also expose as a global variable for compatibility
+  window._measure = window._measure;
+})();
+
+</script>
 
 // Define _measure library
 var _measure = (function() {
-  var endpoint = "https://measure-app-johql2fxpq-ey.a.run.app/events";
+  var endpoint = "https://measure-app-exukvg5v4a-ey.a.run.app/static/measure.js";
 
   // Function to send data to the endpoint
   function sendData(data) {

@@ -280,20 +280,13 @@ grant_bigquery_permissions() {
         "roles/bigquery.jobUser"
         "roles/bigquery.user"
     )
+    # TODO: Check how to get rid of the bindings.role conditions!!!
 
     for role in "${roles[@]}"; do
-        if gcloud projects get-iam-policy "$GCP_PROJECT_ID" \
-            --flatten="bindings[].members" \
-            --filter="bindings.members:serviceAccount:$SA_EMAIL AND bindings.role:$role" \
-            --format="value(bindings.role)" | grep -q "$role"; then
-            log "Role '$role' already granted"
-        else
-            gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
-                --member="serviceAccount:$SA_EMAIL" \
-                --role="$role" || \
-                error "Failed to grant role: $role"
-            log "Granted role: $role"
-        fi
+        gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" \
+            --member="serviceAccount:$SA_EMAIL" \
+            --role="$role" 2>/dev/null || log "Role '$role' already granted or failed to add"
+        log "Ensured role: $role"
     done
 
     # Verify and configure dataset access

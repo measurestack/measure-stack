@@ -202,6 +202,8 @@ setup_project() {
 }
 
 check_billing() {
+
+    #TODO: Check if billing setup is ACTUALLY REQUIRED
     log "Checking billing status..."
 
     local billing_enabled
