@@ -5,19 +5,14 @@ Welcome to the Measure.js documentation! This is a comprehensive web analytics t
 ## 📚 Documentation Sections
 
 ### 🚀 Getting Started
-- [Quick Start Guide](./getting-started/quick-start.md) - Get up and running in minutes
-- [Installation Guide](./getting-started/installation.md) - Detailed setup instructions
+- [Production Deployment](./deployment/production.md) - Complete production deployment guide
+- [dbt Cloud Run Deployment](./deployment/dbt-cloud-run.md) - Data pipeline deployment
 - [Configuration](./getting-started/configuration.md) - Environment and application configuration
 
 ### 📖 API Reference
 - [Events API](./api/events.md) - Track user events and pageviews with rate limiting
 - [Health API](./api/health.md) - System health monitoring
 - [Data Models](./api/data-models.md) - Event data structure and types
-
-### 🔧 Development
-- [Project Structure](./project-structure.md) - Comprehensive codebase organization guide
-- [Testing Guide](./development/testing.md) - Running tests and writing new ones
-- [Contributing](./development/contributing.md) - How to contribute to the project
 
 ### 📊 Analytics & Data
 - [dbt Data Pipeline](./analytics/dbt-pipeline.md) - Data transformation and analytics
@@ -27,8 +22,7 @@ Welcome to the Measure.js documentation! This is a comprehensive web analytics t
 ### 🚀 Deployment
 - [Production Deployment](./deployment/production.md) - Complete production deployment guide
 - [Docker Deployment](./deployment/docker.md) - Containerized deployment
-- [Cloud Deployment](./deployment/cloud.md) - Deploy to cloud platforms
-- [Environment Management](./deployment/environments.md) - Managing different environments
+- [dbt Cloud Run Deployment](./deployment/dbt-cloud-run.md) - Data pipeline deployment
 
 ### 🔒 Security & Privacy
 - [Privacy Features](./security/privacy.md) - GDPR compliance and privacy controls
@@ -61,7 +55,7 @@ Measure.js is a privacy-focused web analytics solution that provides:
 - **Database**: [Google BigQuery](https://cloud.google.com/bigquery) - Data warehouse
 - **Analytics**: [dbt](https://www.getdbt.com/) - Data transformation
 - **Geolocation**: [MaxMind GeoIP2](https://www.maxmind.com/en/geoip2-services-and-databases) - IP geolocation
-- **Deployment**: Docker, Google Cloud Platform, Kubernetes
+- **Deployment**: Google Cloud Platform, Cloud Run, Docker
 
 ## 🏗️ Architecture Overview
 
@@ -70,7 +64,7 @@ Measure.js is a privacy-focused web analytics solution that provides:
 │   Client Side   │    │   Server Side   │    │   Data Layer    │
 │                 │    │                 │    │                 │
 │ measure.js SDK  │───▶│  Hono API       │───▶│  BigQuery       │
-│ (Browser)       │    │  (Bun Runtime)  │    │  (Raw Events)   │
+│ (Browser)       │    │  (Cloud Run)    │    │  (Raw Events)   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │                        │
                                 ▼                        ▼
@@ -78,7 +72,7 @@ Measure.js is a privacy-focused web analytics solution that provides:
                        │  Data Pipeline  │    │  Analytics      │
                        │                 │    │                 │
                        │  dbt Models     │───▶│  Dashboards     │
-                       │  (Transform)    │    │  (Insights)     │
+                       │  (Cloud Run)    │    │  (Insights)     │
                        └─────────────────┘    └─────────────────┘
 ```
 
@@ -94,9 +88,9 @@ Measure.js is a privacy-focused web analytics solution that provides:
 ### Performance & Scalability
 - **High Performance**: Bun runtime for fast execution
 - **Real-time Processing**: Immediate event processing and storage
-- **Horizontal Scaling**: Support for multiple deployment strategies
+- **Auto-scaling**: Cloud Run automatic scaling capabilities
 - **Load Balancing**: Built-in load balancing capabilities
-- **Caching**: Intelligent caching strategies
+- **Global Distribution**: Multi-region deployment support
 
 ### Data & Analytics
 - **Geographic Analytics**: IP-based location tracking
@@ -105,40 +99,37 @@ Measure.js is a privacy-focused web analytics solution that provides:
 - **Custom Events**: Flexible event tracking system
 - **Data Pipeline**: dbt-powered data transformation
 
-## 📊 Test Coverage
+## 🚀 Production Deployment
 
-### Current Status
-- **Unit Tests**: ✅ 20/20 passing (IP utilities, crypto, config)
-- **Integration Tests**: ⚠️ 2/2 passing (health, rate limiting)
-- **E2E Tests**: ⚠️ Known issues with Hono/Bun adapter
+### Google Cloud Platform (Recommended)
 
-### Test Categories
-- **Unit Tests**: Individual function testing in isolation
-- **Integration Tests**: API endpoint and component interaction testing
-- **End-to-End Tests**: Complete user flow testing
-- **Performance Tests**: Load and stress testing
+The recommended deployment approach uses Google Cloud Platform services:
 
-## 🚀 Deployment Options
+1. **Cloud Run** - Serverless container deployment
+2. **BigQuery** - Data warehouse for analytics
+3. **Cloud Scheduler** - Automated dbt pipeline execution
+4. **Cloud Build** - Automated container builds
 
-### 1. Docker (Recommended)
-- Containerized deployment with Docker Compose
-- Easy scaling and management
-- Production-ready configuration
+### Quick Deployment
 
-### 2. Google Cloud Platform
-- Cloud Run for serverless deployment
-- Load balancer integration
-- Custom domain support
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/measure-js.git
+cd measure-js
 
-### 3. Kubernetes
-- Full Kubernetes deployment manifests
-- Auto-scaling capabilities
-- Production-grade orchestration
+# Configure environment
+cp example.env .env
+# Edit .env with your production settings
 
-### 4. Traditional Server
-- PM2 process management
-- Nginx reverse proxy
-- SSL/TLS configuration
+# Deploy to production
+./infrastructure/scripts/deploy_app.sh
+```
+
+### Deployment Options
+
+1. **Google Cloud Platform** - Full cloud-native deployment
+2. **Docker** - Containerized deployment
+3. **Kubernetes** - Production orchestration
 
 ## 📈 Monitoring & Observability
 
@@ -182,18 +173,12 @@ Measure.js is a privacy-focused web analytics solution that provides:
 git clone https://github.com/your-repo/measure-js.git
 cd measure-js
 
-# Install dependencies
-bun install
-
-# Set up environment
+# Configure environment
 cp example.env .env
-# Edit .env with your configuration
+# Edit .env with your production settings
 
-# Start development server
-bun run dev
-
-# Run tests
-bun test
+# Deploy to Google Cloud
+./deploy.sh
 ```
 
 ## 📋 Recent Updates
@@ -201,7 +186,7 @@ bun test
 ### v1.0.0 (December 2024)
 - ✅ Complete API implementation with rate limiting
 - ✅ Privacy-focused design with GDPR compliance
-- ✅ Comprehensive test suite
+- ✅ Google Cloud Platform deployment automation
 - ✅ Production deployment guides
 - ✅ Enhanced documentation
 - ✅ Security hardening
@@ -213,6 +198,7 @@ bun test
 - [Hono](https://hono.dev) for the lightweight web framework
 - [dbt](https://www.getdbt.com/) for data transformation
 - [MaxMind](https://www.maxmind.com/) for geolocation services
+- [Google Cloud Platform](https://cloud.google.com/) for cloud infrastructure
 
 ---
 

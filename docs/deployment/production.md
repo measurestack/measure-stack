@@ -1,12 +1,139 @@
 # Production Deployment Guide
 
-This guide covers deploying Measure.js to production environments with best practices for security, performance, and reliability.
+This guide covers deploying Measure.js to production environments on Google Cloud Platform with best practices for security, performance, and reliability.
 
 ## 🚀 Deployment Options
 
-### 1. Docker Deployment (Recommended)
+### 1. Google Cloud Platform (Recommended)
 
-The most flexible and portable deployment option.
+The most scalable and cost-effective deployment option using Google Cloud services.
+
+#### Prerequisites
+
+- Google Cloud Platform account with billing enabled
+- Google Cloud CLI (`gcloud`) installed and authenticated
+- MaxMind GeoIP2 account for geolocation
+- Domain name (optional, for custom domain)
+
+#### Quick Deployment
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/your-repo/measure-js.git
+cd measure-js
+
+# 2. Configure environment
+cp example.env .env
+# Edit .env with your production settings
+
+# 3. Deploy to production
+./deploy.sh
+```
+
+The `deploy.sh` script provides a convenient way to deploy Measure.js with comprehensive validation and error handling. It supports several deployment options:
+
+```bash
+# Deploy everything (recommended)
+./deploy.sh
+
+# Deploy only the main application
+./deploy.sh --app-only
+
+# Deploy only the dbt data pipeline
+./deploy.sh --dbt-only
+
+# Get help and usage information
+./deploy.sh --help
+```
+
+**Features of the deployment script:**
+- ✅ **Prerequisites validation** (gcloud, authentication, environment)
+- ✅ **Environment validation** (required variables, configuration)
+- ✅ **Flexible deployment** (app only, dbt only, or both)
+- ✅ **Comprehensive logging** (all activity logged to `deploy.log`)
+- ✅ **Error handling** (clear error messages with actionable steps)
+- ✅ **Success guidance** (next steps after deployment)
+
+#### Manual Cloud Run Deployment
+
+```bash
+# 1. Set up Google Cloud CLI
+gcloud auth login
+gcloud config set project your-project-id
+
+# 2. Enable required APIs
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable bigquery.googleapis.com
+
+# 3. Deploy to Cloud Run
+gcloud run deploy measure-js-app \
+  --source . \
+  --platform managed \
+  --region europe-west3 \
+  --allow-unauthenticated \
+  --set-env-vars="GCP_PROJECT_ID=your-project-id" \
+  --set-env-vars="GCP_DATASET_ID=measure_js_analytics" \
+  --set-env-vars="GCP_TABLE_ID=events" \
+  --set-env-vars="GEO_ACCOUNT=your-maxmind-account" \
+  --set-env-vars="GEO_KEY=your-maxmind-license-key" \
+  --set-env-vars="DAILY_SALT=your-secure-salt" \
+  --set-env-vars="CORS_ORIGIN=https://yourdomain.com" \
+  --set-env-vars="RATE_LIMIT_WINDOW_MS=60000" \
+  --set-env-vars="RATE_LIMIT_MAX_REQUESTS=100" \
+  --max-instances=10 \
+  --memory=512Mi \
+  --cpu=1 \
+  --timeout=30 \
+  --concurrency=80
+```
+
+#### Cloud Run with Custom Domain
+
+```bash
+# 1. Map custom domain
+gcloud run domain-mappings create \
+  --service measure-js-app \
+  --domain analytics.yourdomain.com \
+  --region europe-west3
+
+# 2. Update DNS records
+# Add CNAME record: analytics.yourdomain.com -> ghs.googlehosted.com
+```
+
+#### Cloud Run with Load Balancer
+
+```bash
+# 1. Create load balancer
+gcloud compute backend-services create measure-js-backend \
+  --global \
+  --load-balancing-scheme=EXTERNAL_MANAGED
+
+# 2. Add Cloud Run backend
+gcloud compute backend-services add-backend measure-js-backend \
+  --global \
+  --service=measure-js-app \
+  --region=europe-west3
+
+# 3. Create URL map
+gcloud compute url-maps create measure-js-lb \
+  --default-service measure-js-backend
+
+# 4. Create HTTPS proxy
+gcloud compute target-https-proxies create measure-js-https-proxy \
+  --url-map=measure-js-lb \
+  --ssl-certificates=your-ssl-cert
+
+# 5. Create forwarding rule
+gcloud compute forwarding-rules create measure-js-https \
+  --global \
+  --target-https-proxy=measure-js-https-proxy \
+  --ports=443
+```
+
+### 2. Docker Deployment
+
+For containerized deployment on any platform.
 
 #### Prerequisites
 
@@ -24,7 +151,7 @@ docker build -t measure-js:latest .
 cat > .env.prod << EOF
 # Google Cloud Platform
 GCP_PROJECT_ID=your-production-project
-GCP_DATASET_ID=analytics
+GCP_DATASET_ID=measure_js_analytics
 GCP_TABLE_ID=events
 
 # MaxMind GeoIP2
@@ -99,85 +226,9 @@ docker-compose ps
 docker-compose logs -f measure-js
 ```
 
-### 2. Google Cloud Platform
-
-#### Cloud Run Deployment
-
-```bash
-# 1. Set up Google Cloud CLI
-gcloud auth login
-gcloud config set project your-project-id
-
-# 2. Enable required APIs
-gcloud services enable run.googleapis.com
-gcloud services enable cloudbuild.googleapis.com
-
-# 3. Deploy to Cloud Run
-gcloud run deploy measure-js \
-  --source . \
-  --platform managed \
-  --region europe-west3 \
-  --allow-unauthenticated \
-  --set-env-vars="GCP_PROJECT_ID=your-project-id" \
-  --set-env-vars="GCP_DATASET_ID=analytics" \
-  --set-env-vars="GCP_TABLE_ID=events" \
-  --set-env-vars="GEO_ACCOUNT=your-maxmind-account" \
-  --set-env-vars="GEO_KEY=your-maxmind-license-key" \
-  --set-env-vars="DAILY_SALT=your-secure-salt" \
-  --set-env-vars="CORS_ORIGIN=https://yourdomain.com" \
-  --set-env-vars="RATE_LIMIT_WINDOW_MS=60000" \
-  --set-env-vars="RATE_LIMIT_MAX_REQUESTS=100" \
-  --max-instances=10 \
-  --memory=512Mi \
-  --cpu=1 \
-  --timeout=30 \
-  --concurrency=80
-```
-
-#### Cloud Run with Custom Domain
-
-```bash
-# 1. Map custom domain
-gcloud run domain-mappings create \
-  --service measure-js \
-  --domain analytics.yourdomain.com \
-  --region europe-west3
-
-# 2. Update DNS records
-# Add CNAME record: analytics.yourdomain.com -> ghs.googlehosted.com
-```
-
-#### Cloud Run with Load Balancer
-
-```bash
-# 1. Create load balancer
-gcloud compute backend-services create measure-js-backend \
-  --global \
-  --load-balancing-scheme=EXTERNAL_MANAGED
-
-# 2. Add Cloud Run backend
-gcloud compute backend-services add-backend measure-js-backend \
-  --global \
-  --service=measure-js \
-  --region=europe-west3
-
-# 3. Create URL map
-gcloud compute url-maps create measure-js-lb \
-  --default-service measure-js-backend
-
-# 4. Create HTTPS proxy
-gcloud compute target-https-proxies create measure-js-https-proxy \
-  --url-map=measure-js-lb \
-  --ssl-certificates=your-ssl-cert
-
-# 5. Create forwarding rule
-gcloud compute forwarding-rules create measure-js-https \
-  --global \
-  --target-https-proxy=measure-js-https-proxy \
-  --ports=443
-```
-
 ### 3. Kubernetes Deployment
+
+For production orchestration on Kubernetes.
 
 #### Basic Kubernetes Deployment
 
@@ -208,7 +259,7 @@ spec:
         - name: GCP_PROJECT_ID
           value: "your-project-id"
         - name: GCP_DATASET_ID
-          value: "analytics"
+          value: "measure_js_analytics"
         - name: GCP_TABLE_ID
           value: "events"
         - name: GEO_ACCOUNT
@@ -253,187 +304,106 @@ spec:
             port: 3000
           initialDelaySeconds: 5
           periodSeconds: 5
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: measure-js-service
-spec:
-  selector:
-    app: measure-js
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 3000
-  type: LoadBalancer
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: measure-js-secrets
-type: Opaque
-data:
-  geo-account: <base64-encoded-account>
-  geo-key: <base64-encoded-key>
-  daily-salt: <base64-encoded-salt>
 ```
+
+## 🚀 Automated Deployment Script
+
+The `deploy.sh` script provides a streamlined deployment experience with comprehensive validation and error handling.
+
+### Script Features
+
+- **Prerequisites Validation**: Checks gcloud installation, authentication, and project configuration
+- **Environment Validation**: Verifies all required environment variables are set
+- **Flexible Deployment**: Supports deploying app only, dbt only, or both
+- **Comprehensive Logging**: All deployment activity logged to `deploy.log`
+- **Error Handling**: Clear error messages with actionable steps
+- **Success Guidance**: Provides next steps after successful deployment
+
+### Usage
 
 ```bash
-# Deploy to Kubernetes
-kubectl apply -f k8s/deployment.yaml
+# Deploy everything (recommended for first-time setup)
+./deploy.sh
 
-# Check deployment status
-kubectl get pods -l app=measure-js
+# Deploy only the main application
+./deploy.sh --app-only
 
-# View logs
-kubectl logs -l app=measure-js -f
+# Deploy only the dbt data pipeline
+./deploy.sh --dbt-only
+
+# Get help and usage information
+./deploy.sh --help
 ```
 
-### 4. Traditional Server Deployment
+### Prerequisites
 
-#### System Requirements
+Before running the deployment script, ensure:
 
-- Ubuntu 20.04+ or CentOS 8+
-- Node.js 18+ or Bun 1.0+
-- 2GB RAM minimum
-- 10GB disk space
+1. **Google Cloud CLI installed and authenticated**
+   ```bash
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
 
-#### Installation Steps
+2. **Environment configured**
+   ```bash
+   cp example.env .env
+   # Edit .env with your production settings
+   ```
+
+3. **Required environment variables set**
+   - `GCP_PROJECT_ID`
+   - `GCP_DATASET_ID`
+   - `GCP_TABLE_ID`
+   - `GEO_ACCOUNT`
+   - `GEO_KEY`
+   - `DAILY_SALT`
+
+### Deployment Process
+
+The script performs the following steps:
+
+1. **Validation**: Checks prerequisites and environment configuration
+2. **Planning**: Shows what will be deployed
+3. **Deployment**: Runs the appropriate deployment scripts
+4. **Verification**: Confirms successful deployment
+5. **Guidance**: Provides next steps
+
+### Logging
+
+All deployment activity is logged to `deploy.log` in the project root:
 
 ```bash
-# 1. Install Bun
-curl -fsSL https://bun.sh/install | bash
-source ~/.bashrc
+# View deployment logs
+tail -f deploy.log
 
-# 2. Clone repository
-git clone https://github.com/your-repo/measure-js.git
-cd measure-js
-
-# 3. Install dependencies
-bun install
-
-# 4. Build application
-bun run build
-
-# 5. Set up environment
-cp example.env .env
-# Edit .env with production values
-
-# 6. Set up PM2 for process management
-npm install -g pm2
-
-# 7. Create PM2 ecosystem file
-cat > ecosystem.config.js << EOF
-module.exports = {
-  apps: [{
-    name: 'measure-js',
-    script: 'bun',
-    args: 'run src/api/index.ts',
-    instances: 'max',
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    env_file: '.env',
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true
-  }]
-};
-EOF
-
-# 8. Start application
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
+# View recent deployment activity
+tail -n 50 deploy.log
 ```
 
-#### Nginx Configuration
+### Troubleshooting
 
-```nginx
-# /etc/nginx/sites-available/measure-js
-server {
-    listen 80;
-    server_name analytics.yourdomain.com;
-    return 301 https://$server_name$request_uri;
-}
+If the deployment script fails:
 
-server {
-    listen 443 ssl http2;
-    server_name analytics.yourdomain.com;
-
-    ssl_certificate /etc/letsencrypt/live/analytics.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/analytics.yourdomain.com/privkey.pem;
-
-    # SSL configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
-
-    # Security headers
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
-    # Rate limiting
-    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
-    limit_req zone=api burst=20 nodelay;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-        proxy_read_timeout 30s;
-        proxy_connect_timeout 30s;
-        proxy_send_timeout 30s;
-    }
-
-    # Static files
-    location /static/ {
-        alias /path/to/measure-js/static/;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Health check
-    location /health {
-        access_log off;
-        proxy_pass http://localhost:3000/health;
-    }
-}
-```
+1. **Check prerequisites**: Ensure gcloud is installed and authenticated
+2. **Verify environment**: Check that all required variables are set in `.env`
+3. **Review logs**: Check `deploy.log` for detailed error information
+4. **Manual deployment**: Use the individual deployment scripts if needed
 
 ```bash
-# Enable site
-sudo ln -s /etc/nginx/sites-available/measure-js /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+# Manual deployment if script fails
+./infrastructure/scripts/deploy_app.sh
+./infrastructure/scripts/deploy_dbt_job.sh
 ```
 
-## 🔒 Security Configuration
+## 🔧 Environment Configuration
 
-### 1. Environment Variables
+### Required Environment Variables
 
-```bash
-# Generate secure salt
-openssl rand -hex 32
-
-# Set up production environment
-cat > .env.prod << EOF
+```env
 # Google Cloud Platform
-GCP_PROJECT_ID=your-production-project
-GCP_DATASET_ID=analytics
+GCP_PROJECT_ID=your-project-id
+GCP_DATASET_ID=measure_js_analytics
 GCP_TABLE_ID=events
 
 # MaxMind GeoIP2
@@ -441,10 +411,7 @@ GEO_ACCOUNT=your-maxmind-account
 GEO_KEY=your-maxmind-license-key
 
 # Security
-DAILY_SALT=your-generated-secure-salt
-CLIENT_ID_COOKIE_NAME=_ms_cid
-HASH_COOKIE_NAME=_ms_h
-COOKIE_DOMAIN=.yourdomain.com
+DAILY_SALT=your-secure-production-salt
 
 # CORS
 CORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com
@@ -452,360 +419,216 @@ CORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=100
-RATE_LIMIT_SKIP_SUCCESS=false
-RATE_LIMIT_SKIP_FAILED=false
 
 # Environment
 NODE_ENV=production
-PORT=3000
 REGION=europe-west3
+```
+
+### Optional Environment Variables
+
+```env
+# Cookie Settings
+CLIENT_ID_COOKIE_NAME=_ms_cid
+HASH_COOKIE_NAME=_ms_h
+COOKIE_DOMAIN=.yourdomain.com
+
+# Service Configuration
 SERVICE_NAME=measure-js-app
-EOF
+PORT=3000
+
+# Advanced Rate Limiting
+RATE_LIMIT_SKIP_SUCCESS=true
+RATE_LIMIT_SKIP_FAILED=false
 ```
 
-### 2. SSL/TLS Configuration
+## 🔒 Security Configuration
+
+### CORS Settings
+
+Configure CORS to allow your domains:
+
+```env
+CORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com,https://app.yourdomain.com
+```
+
+### Rate Limiting
+
+Adjust rate limiting based on your traffic:
+
+```env
+# Conservative (100 requests per minute)
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Aggressive (1000 requests per minute)
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=1000
+```
+
+### SSL/TLS
+
+For custom domains, ensure SSL certificates are properly configured:
 
 ```bash
-# Install Certbot
-sudo apt install certbot python3-certbot-nginx
-
-# Obtain SSL certificate
-sudo certbot --nginx -d analytics.yourdomain.com
-
-# Auto-renewal
-sudo crontab -e
-# Add: 0 12 * * * /usr/bin/certbot renew --quiet
-```
-
-### 3. Firewall Configuration
-
-```bash
-# UFW firewall setup
-sudo ufw allow ssh
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-```
-
-### 4. Security Headers
-
-```nginx
-# Add to Nginx configuration
-add_header X-Frame-Options DENY;
-add_header X-Content-Type-Options nosniff;
-add_header X-XSS-Protection "1; mode=block";
-add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';";
+# Cloud Run automatically handles SSL
+# For custom domains, follow Google Cloud documentation
 ```
 
 ## 📊 Monitoring & Observability
 
-### 1. Application Monitoring
+### Health Checks
 
-#### Health Checks
+The application provides health check endpoints:
 
 ```bash
 # Basic health check
-curl -f http://localhost:3000/health
+curl https://your-app-name-xyz123-ez.a.run.app/health
 
 # Detailed health check
-curl -f http://localhost:3000/health | jq
-
-# Automated monitoring script
-cat > monitor.sh << 'EOF'
-#!/bin/bash
-ENDPOINT="http://localhost:3000/health"
-LOG_FILE="/var/log/measure-js-health.log"
-
-while true; do
-    if curl -f -s "$ENDPOINT" > /dev/null; then
-        echo "$(date): OK" >> "$LOG_FILE"
-    else
-        echo "$(date): FAILED" >> "$LOG_FILE"
-        # Send alert
-        echo "Measure.js health check failed" | mail -s "Alert" admin@yourdomain.com
-    fi
-    sleep 60
-done
-EOF
-
-chmod +x monitor.sh
-nohup ./monitor.sh &
+curl https://your-app-name-xyz123-ez.a.run.app/health/detailed
 ```
 
-#### Logging
+### Logging
+
+View application logs:
 
 ```bash
-# Application logs
-tail -f /var/log/measure-js/app.log
+# Cloud Run logs
+gcloud run services logs read measure-js-app --region=europe-west3 --limit=50
 
-# Nginx logs
-tail -f /var/log/nginx/access.log
-tail -f /var/log/nginx/error.log
-
-# System logs
-journalctl -u measure-js -f
+# Follow logs in real-time
+gcloud run services logs tail measure-js-app --region=europe-west3
 ```
 
-### 2. Performance Monitoring
+### Monitoring
 
-#### Resource Monitoring
+Set up monitoring and alerting:
 
 ```bash
-# Install monitoring tools
-sudo apt install htop iotop nethogs
+# Create monitoring dashboard
+gcloud monitoring dashboards create --config=dashboard.yaml
 
-# Monitor system resources
-htop
-iotop
-nethogs
-
-# Monitor disk usage
-df -h
-du -sh /var/log/measure-js/
+# Set up alerts for errors
+gcloud alpha monitoring policies create --policy-from-file=alert-policy.yaml
 ```
 
-#### Application Metrics
+## 🔧 Performance Optimization
+
+### Cloud Run Configuration
+
+Optimize Cloud Run settings for your traffic:
 
 ```bash
-# Monitor request rates
-watch -n 1 "tail -n 100 /var/log/nginx/access.log | grep -c 'POST /events'"
+# High traffic (1000+ requests/minute)
+gcloud run services update measure-js-app \
+  --max-instances=50 \
+  --memory=1Gi \
+  --cpu=2 \
+  --concurrency=100
 
-# Monitor error rates
-watch -n 1 "tail -n 100 /var/log/nginx/access.log | grep -c ' 5[0-9][0-9] '"
-
-# Monitor response times
-tail -f /var/log/nginx/access.log | awk '{print $10}' | sort -n
+# Low traffic (100- requests/minute)
+gcloud run services update measure-js-app \
+  --max-instances=5 \
+  --memory=512Mi \
+  --cpu=1 \
+  --concurrency=80
 ```
 
-### 3. Data Pipeline Monitoring
+### BigQuery Optimization
+
+Optimize BigQuery for analytics:
+
+```sql
+-- Create partitioned table for better performance
+CREATE TABLE `your-project.measure_js_analytics.events_partitioned`
+PARTITION BY DATE(timestamp)
+AS SELECT * FROM `your-project.measure_js_analytics.events`;
+```
+
+## 🚀 Scaling
+
+### Auto-scaling
+
+Cloud Run automatically scales based on traffic:
+
+- **Min instances**: 0 (cost-effective)
+- **Max instances**: 10-100 (based on traffic)
+- **Concurrency**: 80-100 requests per instance
+
+### Manual Scaling
+
+For predictable traffic patterns:
 
 ```bash
-# Check BigQuery data flow
-bq query --use_legacy_sql=false "
-  SELECT
-    DATE(timestamp) as date,
-    COUNT(*) as events,
-    COUNT(DISTINCT client_id) as unique_users
-  FROM \`your-project.analytics.events\`
-  WHERE timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
-  GROUP BY 1
-  ORDER BY 1
-"
-
-# Monitor dbt pipeline
-cd data/dbt/measure_js
-dbt run --models core+
-dbt test
-dbt docs generate
+# Set minimum instances for consistent performance
+gcloud run services update measure-js-app \
+  --min-instances=2 \
+  --max-instances=20
 ```
 
-## 🔄 Backup & Recovery
-
-### 1. Application Backup
-
-```bash
-# Backup application files
-tar -czf measure-js-backup-$(date +%Y%m%d).tar.gz \
-  --exclude=node_modules \
-  --exclude=.git \
-  --exclude=logs \
-  .
-
-# Backup environment configuration
-cp .env .env.backup-$(date +%Y%m%d)
-
-# Backup logs
-tar -czf logs-backup-$(date +%Y%m%d).tar.gz logs/
-```
-
-### 2. Database Backup
-
-```bash
-# Export BigQuery data (if needed)
-bq extract your-project:analytics.events gs://your-backup-bucket/events-$(date +%Y%m%d).json
-
-# Backup dbt models
-tar -czf dbt-backup-$(date +%Y%m%d).tar.gz data/dbt/
-```
-
-### 3. Recovery Procedures
-
-```bash
-# Restore application
-tar -xzf measure-js-backup-YYYYMMDD.tar.gz
-cp .env.backup-YYYYMMDD .env
-
-# Restart application
-pm2 restart measure-js
-# or
-docker-compose restart measure-js
-# or
-kubectl rollout restart deployment/measure-js
-```
-
-## 🚨 Troubleshooting
+## 🔧 Troubleshooting
 
 ### Common Issues
 
-#### 1. High Memory Usage
-
+**Deployment fails with permission errors?**
 ```bash
-# Check memory usage
-free -h
-ps aux --sort=-%mem | head -10
-
-# Restart application
-pm2 restart measure-js
-```
-
-#### 2. High CPU Usage
-
-```bash
-# Check CPU usage
-top
-htop
-
-# Check for rate limiting issues
-tail -f /var/log/nginx/access.log | grep " 429 "
-```
-
-#### 3. Database Connection Issues
-
-```bash
-# Test BigQuery connection
-bq query --use_legacy_sql=false "SELECT 1"
-
-# Check service account permissions
+# Check your GCP authentication
 gcloud auth list
-gcloud config get-value project
+
+# Ensure you have the required roles
+gcloud projects get-iam-policy your-project-id \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:user:$(gcloud config get-value account)"
 ```
 
-#### 4. SSL Certificate Issues
+**Events not appearing in BigQuery?**
+- Check service account permissions
+- Verify BigQuery dataset and table exist
+- Check Cloud Run logs for errors
 
-```bash
-# Check certificate expiration
-openssl x509 -in /etc/letsencrypt/live/analytics.yourdomain.com/cert.pem -text -noout | grep "Not After"
+**CORS errors in browser?**
+- Ensure your domain is in the CORS origins list
+- Check that the endpoint URL is correct
+- Verify Cloud Run service is accessible
 
-# Renew certificate
-sudo certbot renew --dry-run
+**High latency?**
+- Check Cloud Run region proximity
+- Optimize BigQuery queries
+- Review rate limiting settings
+
+### Debug Mode
+
+Enable debug logging:
+
+```env
+NODE_ENV=production
+LOG_LEVEL=debug
 ```
 
-### Performance Optimization
+## 📋 Production Checklist
 
-#### 1. Application Optimization
+Before going live, ensure:
 
-```bash
-# Increase Node.js memory limit
-export NODE_OPTIONS="--max-old-space-size=2048"
+- ✅ [ ] Environment variables are properly configured
+- ✅ [ ] CORS origins include your production domains
+- ✅ [ ] Rate limiting is appropriate for your traffic
+- ✅ [ ] MaxMind GeoIP2 credentials are valid
+- ✅ [ ] BigQuery dataset and tables are created
+- ✅ [ ] Cloud Run service is accessible
+- ✅ [ ] SSL certificates are configured (if using custom domain)
+- ✅ [ ] Monitoring and alerting are set up
+- ✅ [ ] Backup and disaster recovery procedures are in place
+- ✅ [ ] Performance testing has been completed
+- ✅ [ ] Security audit has been performed
 
-# Optimize Bun runtime
-export BUN_OPTIONS="--max-old-space-size=2048"
-```
+## 📞 Support
 
-#### 2. Nginx Optimization
-
-```nginx
-# Add to nginx.conf
-worker_processes auto;
-worker_connections 1024;
-keepalive_timeout 65;
-gzip on;
-gzip_types text/plain text/css application/json application/javascript;
-```
-
-#### 3. Database Optimization
-
-```sql
--- Optimize BigQuery queries
-SELECT
-  DATE(timestamp) as date,
-  COUNT(*) as events
-FROM `your-project.analytics.events`
-WHERE timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-  AND _PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-GROUP BY 1
-ORDER BY 1;
-```
-
-## 📈 Scaling
-
-### 1. Horizontal Scaling
-
-#### Docker Swarm
-
-```bash
-# Initialize swarm
-docker swarm init
-
-# Deploy stack
-docker stack deploy -c docker-compose.yml measure-js
-```
-
-#### Kubernetes Scaling
-
-```bash
-# Scale deployment
-kubectl scale deployment measure-js --replicas=5
-
-# Auto-scaling
-kubectl autoscale deployment measure-js --cpu-percent=70 --min=2 --max=10
-```
-
-### 2. Load Balancing
-
-```nginx
-# Nginx upstream configuration
-upstream measure-js {
-    least_conn;
-    server 127.0.0.1:3001;
-    server 127.0.0.1:3002;
-    server 127.0.0.1:3003;
-    server 127.0.0.1:3004;
-}
-```
-
-### 3. Database Scaling
-
-```sql
--- Partition BigQuery table by date
-CREATE TABLE `your-project.analytics.events_partitioned`
-PARTITION BY DATE(timestamp)
-AS SELECT * FROM `your-project.analytics.events`;
-```
-
-## 📋 Deployment Checklist
-
-### Pre-Deployment
-
-- [ ] Environment variables configured
-- [ ] SSL certificate installed
-- [ ] Firewall configured
-- [ ] Monitoring set up
-- [ ] Backup strategy in place
-- [ ] DNS records updated
-- [ ] Load testing completed
-
-### Post-Deployment
-
-- [ ] Health checks passing
-- [ ] SSL certificate valid
-- [ ] Rate limiting working
-- [ ] CORS configuration correct
-- [ ] Data flowing to BigQuery
-- [ ] dbt pipeline running
-- [ ] Monitoring alerts configured
-- [ ] Documentation updated
-
-### Ongoing Maintenance
-
-- [ ] Regular security updates
-- [ ] SSL certificate renewal
-- [ ] Log rotation
-- [ ] Performance monitoring
-- [ ] Backup verification
-- [ ] Dependency updates
+- **[Documentation](docs/README.md)** - Comprehensive guides
+- **[GitHub Issues](https://github.com/your-repo/measure-js/issues)** - Bug reports and feature requests
+- **[Discussions](https://github.com/your-repo/measure-js/discussions)** - Community discussions
+- **[Email Support](mailto:support@9fwr.com)** - Direct support
 
 ---
 
-**Need help with deployment?** Check the [deployment scripts](../infrastructure/scripts/) or [contact support](mailto:support@9fwr.com).
+**Need more help?** Check out the [full documentation](../README.md) or [contact support](mailto:support@9fwr.com).
