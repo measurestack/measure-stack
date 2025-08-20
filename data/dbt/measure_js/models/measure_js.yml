@@ -1,0 +1,8 @@
+#ref takes results of sql files
+version: 2
+
+sources:
+  - name: mjs
+    dataset: "{{ env_var('GCP_DATASET_ID') }}"
+    tables:
+      - name: events

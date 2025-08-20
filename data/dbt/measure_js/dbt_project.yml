@@ -1,0 +1,65 @@
+
+# Name your project! Project names should contain only lowercase characters
+# and underscores. A good package name should reflect your organization's
+# name or the intended use of these models
+name: 'measure_js'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'measure_js'
+
+# These configurations specify where dbt should look for different types of files.
+# The `model-paths` config, for example, states that models in this project can be
+# found in the "models/" directory. You probably won't need to change these!
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"  # directory which will store compiled SQL files
+clean-targets:         # directories to be removed by `dbt clean`
+  - "target"
+  - "dbt_packages"
+
+vars:
+  internal_referrers: "paddle\\.com|stripe\\.com|accounts\\.google\\."
+  bot_regex: "[Bb]ot|[sS]ite|measure|Adwords|censys|jsdom|python|http|[Tt]ask|[Tt]est|[Hh]eadless|[Ss]pider"
+  clid_parameters: "gclid|fbclid|wbraid|gbraid|tblci|li_fat_id" # various click identifier parameters from different platforms
+  page_location_cleanup: "(https?://[^/?#]+|#tblci[^&#]+$)" # remove host part; fix tableau hashtag
+  request_pageviews: "TRUE"
+  request_pageviews_regex: '(?:https?://[^/]+$|/$|\.html$|/[^/\.]+$)'
+  utm_rules: # note, this will not overwrite existing utm parameters!
+    - condition: "clid is not null and clid.parameter in ('gclid','wbraid','gbraid')"
+      source: "'google'"
+      medium: "'cpc'"
+    - condition: "clid is not null and clid.parameter='fbclid'"
+      source: "'facebook'"
+    - condition: "regexp_contains(referring_domain,r'^(www\\.)?google\\.\\w+')"
+      source: "'google'"
+      medium: "'organic'"
+    - condition: "is_ext_referrer"
+      source: "'referring_domain'"
+      medium: "'referral'"
+  session_metrics: # this will be inserted when events will be grouped by session_id. In the condition use event_sessionated columns
+    - name: "logged_in"
+      count_once: true
+      condition: "event_name='pageview' and url like '%app.ga3-exporter%' and url not like '%login%' and url not like '%register%'"
+    - name: "activated"
+      count_once: true
+      condition: "event_name='pageview' and url like '%pricing%' or url like '%login%' or url like '%register%'"
+
+# Configuring models
+# Full documentation: https://docs.getdbt.com/docs/configuring-models
+
+# In this example config, we tell dbt to build all models in the example/ directory
+# as tables. These settings can be overridden in the individual model files
+# using the `{{ config(...) }}` macro.
+models:
+  measure_js:
+    staging:
+      +materialized: view
+    core:
+      +materialized: view

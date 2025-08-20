@@ -1,0 +1,30 @@
+measure_js:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "{{ env_var('GCP_DATASET_ID') }}"
+      location: "{{ env_var('REGION') }}"
+      timeout_seconds: 300
+      retries: 1
+      priority: interactive
+      threads: 4
+      maximum_bytes_billed: 1000000000  # 1GB
+      use_legacy_sql: false
+      use_cost_analysis: true
+
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "{{ env_var('GCP_DATASET_ID') }}_dev"  # Separate dev dataset
+      location: "{{ env_var('REGION') }}"
+      timeout_seconds: 300
+      retries: 1
+      priority: interactive
+      threads: 4
+      maximum_bytes_billed: 1000000000  # 1GB
+      use_legacy_sql: false
+      use_cost_analysis: true

@@ -1,0 +1,4 @@
+dbt-core==1.7.3
+dbt-bigquery==1.7.3
+google-cloud-bigquery==3.13.0
+google-auth==2.23.4
