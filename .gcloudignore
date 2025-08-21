@@ -13,5 +13,28 @@
 .git
 .gitignore
 
-**/node_modules
-**/tests/
+# Ignore everything by default
+*
+
+# Include only what's needed for Dockerfile
+!static/
+!package.json
+!bun.lockb
+!tsconfig.json
+!src/
+!Dockerfile
+
+# Exclude unnecessary files within included directories
+src/**/*.test.ts
+src/**/*.spec.ts
+**/.DS_Store
+**/node_modules/
+**/*.log
+.git/
+.vscode/
+infrastructure/
+data/
+docs/
+dist/
+*.md
+.env*

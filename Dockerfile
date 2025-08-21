@@ -5,21 +5,24 @@ FROM oven/bun:latest
 WORKDIR /app
 
 # Copy the static JS function
-COPY ./static .
+COPY ./static ./static
 
 # Copy package files
 COPY package.json .
-COPY bun.lock .
+COPY bun.lockb .
 COPY tsconfig.json .
 
-# Install dependencies
+# Install dependencies (including dev deps needed for build)
 RUN bun install
 
 # Copy the source code
 COPY src ./src
 
+# Build the TypeScript to JavaScript (exclude problematic dependencies)
+RUN bun build src/api/index.ts --outdir ./dist --target bun --external useragent --external request --external yamlparser
+
 # Expose the port
 EXPOSE 3000
 
-# Command to start the server
-CMD ["bun", "run", "src/api/index.ts"]
+# Command to start the server (using pre-built JS)
+CMD ["bun", "run", "dist/index.js"]
