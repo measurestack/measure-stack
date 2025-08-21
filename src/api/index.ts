@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { Hono } from 'hono';
+import { serveStatic } from 'hono/bun';
 import { corsMiddleware } from './middleware/cors';
 import { rateLimitMiddleware } from './middleware/rateLimit';
 import eventsRouter from './routes/events';
@@ -19,6 +20,12 @@ app.use('/events/*', rateLimitMiddleware);
 
 // Routes
 app.get("/", (c) => c.text("{Nothing to see here}"));
+
+// Serve measure.js script
+app.get('/measure.js', serveStatic({ 
+  path: './static/measure.js',
+  mimes: { 'js': 'application/javascript' }
+}));
 
 // Mount route handlers
 app.route('/events', eventsRouter);

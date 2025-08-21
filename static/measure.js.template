@@ -3,9 +3,11 @@
 // other way -> while deploying -> the deploy url should be clear we could check the endpoint
 // at glcoud _> you can define a subdomain for the tracking -> ask the user for his preferred URL
 
+var _currentScript = document.currentScript || (function(s){return s[s.length-1]})(document.getElementsByTagName('script'));
+var endpoint = "{{ endpoint }}" || _currentScript && _currentScript.src && new URL(_currentScript.src).origin + "/events";
+
 // Define _measure library
 var _measure = (function() {
-  var endpoint = "{{ endpoint }}/events";
 
   // Function to send data to the endpoint
   function sendData(data) {
