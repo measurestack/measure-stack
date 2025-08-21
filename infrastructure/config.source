@@ -1,0 +1,53 @@
+#!/bin/bash
+# Unified configuration for measure-js deployment scripts
+# You can adapt all variables but at least you must adapt the ones marked with ADAPT!
+
+# ========================= Core GCP Settings =========================
+GCP_PROJECT_ID="measure-test-deploy" #ADAPT!
+REGION="europe-west1" 
+GCP_DATASET_ID="measure_js"
+GCP_TABLE_ID="events"
+
+# ========================= App Service Settings =========================
+SERVICE_NAME="measure-app"
+SERVICE_URL="" #leave empty for auto-detection; set to the trackingendpoint if autodetection does not work for you ,e.g. "https://tracking.yourdomain.com"
+CLIENT_ID_COOKIE_NAME="_ms_cid"
+HASH_COOKIE_NAME="_ms_h"
+COOKIE_DOMAIN="yourdomain.com" #ADAPT!
+DAILY_SALT="change-me-in-production"
+GEO_ACCOUNT="" # get account from https://www.maxmind.com/en/geolite-free-ip-geolocation-data if you want IP geolocation
+GEO_KEY=""
+CORS_ORIGIN="yourdomain.com" #ADAPT! comma separated list of allowed origins
+
+# ========================= App Deployment Settings =========================
+MEMORY="512Mi"
+CPU="1"
+MAX_INSTANCES="10"
+MIN_INSTANCES="0" #set this to 1 if you need the app to be always warm
+TIMEOUT="300"
+
+# Rate limiting settings
+RATE_LIMIT_WINDOW_MS="60000"
+RATE_LIMIT_MAX_REQUESTS="100"
+RATE_LIMIT_SKIP_SUCCESS="false"
+RATE_LIMIT_SKIP_FAILED="false"
+
+# ========================= DBT Settings =========================
+DBT_JOB_NAME="measure-dbt-job"
+DBT_SA_NAME="measure-dbt-sa"
+DBT_MEMORY="2Gi"
+DBT_CPU="1"
+DBT_MAX_RETRIES="3"
+DBT_TIMEOUT="1800s"
+DBT_SCHEDULE="0 6 * * *"
+DBT_TARGET="prod"
+DBT_SCHEDULER_JOB_NAME="measure-dbt-scheduler"
+
+# ========================= Derived Values =========================
+# App service account and image
+SA_EMAIL="$SERVICE_NAME@$GCP_PROJECT_ID.iam.gserviceaccount.com"
+IMAGE_NAME="gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME"
+
+# DBT service account and resources
+DBT_SA_EMAIL="$DBT_SA_NAME@$GCP_PROJECT_ID.iam.gserviceaccount.com"
+DBT_IMAGE_NAME="gcr.io/$GCP_PROJECT_ID/$DBT_JOB_NAME"
