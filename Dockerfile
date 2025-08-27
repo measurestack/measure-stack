@@ -9,7 +9,7 @@ COPY ./static ./static
 
 # Copy package files
 COPY package.json .
-COPY bun.lockb .
+COPY bun.lock .
 COPY tsconfig.json .
 
 # Install dependencies (including dev deps needed for build)

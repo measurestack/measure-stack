@@ -21,6 +21,7 @@
     "elysia": "latest",
     "firebase-admin": "^13.2.0",
     "firebase-tools": "^13.33.0",
+    "google-auth-library": "latest",
     "hono": "latest",
     "useragent": "latest",
     "uuid": "latest",

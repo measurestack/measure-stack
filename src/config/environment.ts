@@ -7,6 +7,7 @@ export const config = {
     projectId: process.env.GCP_PROJECT_ID || '',
     datasetId: process.env.GCP_DATASET_ID || '',
     tableId: process.env.GCP_TABLE_ID || '',
+    firestoreDatabase: process.env.GCP_FIRESTORE_DATABASE || '(default)',
   },
   geo: {
     account: process.env.GEO_ACCOUNT || '',

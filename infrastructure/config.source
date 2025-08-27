@@ -7,6 +7,7 @@ GCP_PROJECT_ID="measure-test-deploy" #ADAPT!
 REGION="europe-west1" 
 GCP_DATASET_ID="measure_js"
 GCP_TABLE_ID="events"
+GCP_FIRESTORE_DATABASE="(default)"
 
 # ========================= App Service Settings =========================
 SERVICE_NAME="measure-app"

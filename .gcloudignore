@@ -19,7 +19,7 @@
 # Include only what's needed for Dockerfile
 !static/
 !package.json
-!bun.lockb
+!bun.lock
 !tsconfig.json
 !src/
 !Dockerfile

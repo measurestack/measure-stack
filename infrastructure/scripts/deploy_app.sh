@@ -18,6 +18,12 @@ sed "s|{{ endpoint }}|$SERVICE_URL|g" static/measure.js.template > static/measur
 # Enable services
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com bigquery.googleapis.com firestore.googleapis.com --project="$GCP_PROJECT_ID"
 
+# Create Firestore database if it doesn't exist
+if ! gcloud firestore databases describe --database="$GCP_FIRESTORE_DATABASE" --project="$GCP_PROJECT_ID" &>/dev/null; then
+    { set +x; echo "🔥 Creating Firestore database..."; set -x; }
+    gcloud firestore databases create --database="$GCP_FIRESTORE_DATABASE" --location="$REGION" --type=firestore-native --project="$GCP_PROJECT_ID"
+fi
+
 # Create dataset and table if needed
 if ! bq ls --format=sparse "$GCP_PROJECT_ID:$GCP_DATASET_ID" &>/dev/null; then
     bq mk --dataset --location "$REGION" "$GCP_PROJECT_ID:$GCP_DATASET_ID"
@@ -38,13 +44,33 @@ if ! gcloud iam service-accounts describe "$SA_EMAIL" --project="$GCP_PROJECT_ID
 fi
 
 # Grant permissions
-gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$SA_EMAIL" --role="roles/datastore.user"
+gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$SA_EMAIL" --role="roles/datastore.owner"
 gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$SA_EMAIL" --role="roles/bigquery.dataEditor"
 gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$SA_EMAIL" --role="roles/bigquery.jobUser"
 
 # Build and deploy
 { set +x; echo "📦 Building Docker image..."; set -x; }
 gcloud builds submit --tag "$IMAGE_NAME" --project="$GCP_PROJECT_ID" .
+
+# Create environment variables file for Cloud Run
+ENV_VARS_FILE="/tmp/env-vars.yaml"
+cat > "$ENV_VARS_FILE" << EOF
+GCP_PROJECT_ID: "$GCP_PROJECT_ID"
+GCP_DATASET_ID: "$GCP_DATASET_ID"
+GCP_TABLE_ID: "$GCP_TABLE_ID"
+GCP_FIRESTORE_DATABASE: "$GCP_FIRESTORE_DATABASE"
+CLIENT_ID_COOKIE_NAME: "$CLIENT_ID_COOKIE_NAME"
+HASH_COOKIE_NAME: "$HASH_COOKIE_NAME"
+COOKIE_DOMAIN: "$COOKIE_DOMAIN"
+DAILY_SALT: "$DAILY_SALT"
+GEO_ACCOUNT: "$GEO_ACCOUNT"
+GEO_KEY: "$GEO_KEY"
+CORS_ORIGIN: "$CORS_ORIGIN"
+RATE_LIMIT_WINDOW_MS: "$RATE_LIMIT_WINDOW_MS"
+RATE_LIMIT_MAX_REQUESTS: "$RATE_LIMIT_MAX_REQUESTS"
+RATE_LIMIT_SKIP_SUCCESS: "$RATE_LIMIT_SKIP_SUCCESS"
+RATE_LIMIT_SKIP_FAILED: "$RATE_LIMIT_SKIP_FAILED"
+EOF
 
 { set +x; echo "🏗️ Deploying to Cloud Run..."; set -x; }
 gcloud run deploy "$SERVICE_NAME" \
@@ -53,11 +79,14 @@ gcloud run deploy "$SERVICE_NAME" \
     --allow-unauthenticated \
     --port=3000 \
     --service-account="$SA_EMAIL" \
-    --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,GCP_DATASET_ID=$GCP_DATASET_ID,GCP_TABLE_ID=$GCP_TABLE_ID,CLIENT_ID_COOKIE_NAME=$CLIENT_ID_COOKIE_NAME,HASH_COOKIE_NAME=$HASH_COOKIE_NAME,COOKIE_DOMAIN=$COOKIE_DOMAIN,DAILY_SALT=$DAILY_SALT,GEO_ACCOUNT=$GEO_ACCOUNT,GEO_KEY=$GEO_KEY,CORS_ORIGIN=$CORS_ORIGIN,RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS,RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS,RATE_LIMIT_SKIP_SUCCESS=$RATE_LIMIT_SKIP_SUCCESS,RATE_LIMIT_SKIP_FAILED=$RATE_LIMIT_SKIP_FAILED" \
+    --env-vars-file="$ENV_VARS_FILE" \
     --memory="$MEMORY" \
     --cpu="$CPU" \
     --execution-environment=gen2 \
     --project="$GCP_PROJECT_ID"
+
+# Clean up temp file
+rm "$ENV_VARS_FILE"
 
 # Get the actual service URL after deployment
 DEPLOYED_SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$GCP_PROJECT_ID" --format="value(status.url)")
