@@ -15,9 +15,8 @@ cd "${SCRIPT_DIR}/../.."
 { set +x; echo "📝 Generating measure.js from template..."; set -x; }
 sed "s|{{ endpoint }}|$SERVICE_URL|g" static/measure.js.template > static/measure.js
 
-# Set project and enable services
-gcloud config set project "$GCP_PROJECT_ID"
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com bigquery.googleapis.com firestore.googleapis.com
+# Enable services
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com bigquery.googleapis.com firestore.googleapis.com --project="$GCP_PROJECT_ID"
 
 # Create dataset and table if needed
 if ! bq ls --format=sparse "$GCP_PROJECT_ID:$GCP_DATASET_ID" &>/dev/null; then
@@ -34,8 +33,8 @@ if ! bq show "$GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID" &>/dev/null; then
 fi
 
 # Create service account
-if ! gcloud iam service-accounts describe "$SA_EMAIL" &>/dev/null; then
-    gcloud iam service-accounts create "$SERVICE_NAME" --display-name="Measure-JS SA"
+if ! gcloud iam service-accounts describe "$SA_EMAIL" --project="$GCP_PROJECT_ID" &>/dev/null; then
+    gcloud iam service-accounts create "$SERVICE_NAME" --display-name="Measure-JS SA" --project="$GCP_PROJECT_ID"
 fi
 
 # Grant permissions
@@ -45,7 +44,7 @@ gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccoun
 
 # Build and deploy
 { set +x; echo "📦 Building Docker image..."; set -x; }
-gcloud builds submit --tag "$IMAGE_NAME" .
+gcloud builds submit --tag "$IMAGE_NAME" --project="$GCP_PROJECT_ID" .
 
 { set +x; echo "🏗️ Deploying to Cloud Run..."; set -x; }
 gcloud run deploy "$SERVICE_NAME" \
@@ -57,8 +56,50 @@ gcloud run deploy "$SERVICE_NAME" \
     --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,GCP_DATASET_ID=$GCP_DATASET_ID,GCP_TABLE_ID=$GCP_TABLE_ID,CLIENT_ID_COOKIE_NAME=$CLIENT_ID_COOKIE_NAME,HASH_COOKIE_NAME=$HASH_COOKIE_NAME,COOKIE_DOMAIN=$COOKIE_DOMAIN,DAILY_SALT=$DAILY_SALT,GEO_ACCOUNT=$GEO_ACCOUNT,GEO_KEY=$GEO_KEY,CORS_ORIGIN=$CORS_ORIGIN,RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS,RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS,RATE_LIMIT_SKIP_SUCCESS=$RATE_LIMIT_SKIP_SUCCESS,RATE_LIMIT_SKIP_FAILED=$RATE_LIMIT_SKIP_FAILED" \
     --memory="$MEMORY" \
     --cpu="$CPU" \
-    --execution-environment=gen2
+    --execution-environment=gen2 \
+    --project="$GCP_PROJECT_ID"
+
+# Get the actual service URL after deployment
+DEPLOYED_SERVICE_URL=$(gcloud run services describe "$SERVICE_NAME" --region="$REGION" --project="$GCP_PROJECT_ID" --format="value(status.url)")
+
+# setup domain mapping if TRACKER_DOMAIN is set
+if [ -n "$TRACKER_DOMAIN" ]; then
+  if ! gcloud beta run domain-mappings describe --domain "$TRACKER_DOMAIN" --region "$REGION" --project="$GCP_PROJECT_ID" &>/dev/null; then
+    echo "Creating domain mapping for $TRACKER_DOMAIN"
+    gcloud beta run domain-mappings create \
+      --domain "$TRACKER_DOMAIN" \
+      --service "$SERVICE_NAME" \
+      --platform managed \
+      --region "$REGION" \
+      --project="$GCP_PROJECT_ID"
+  else
+    echo "Domain mapping for $TRACKER_DOMAIN already exists."
+  fi
+fi
+
+
+# Use tracker domain if set, otherwise use deployed service URL
+if [ -n "$TRACKER_DOMAIN" ]; then
+  TRACKING_URL="https://$TRACKER_DOMAIN"
+else
+  TRACKING_URL="$DEPLOYED_SERVICE_URL"
+fi
+
 set +x
 echo "✅ Deployment complete!"
-echo "Service URL: $SERVICE_URL"
-echo "SDK URL: $SERVICE_URL/measure.js"
+echo "Service URL: $TRACKING_URL" 
+echo ""
+echo "Add this tracking script to your website:"
+echo "<script>"
+echo "  (function() {"
+echo "    var s = document.createElement('script');"
+echo "    s.src = '$TRACKING_URL/measure.js';"
+echo "    s.async = true;"
+echo "    s.onload = function() {"
+echo "      _measure.pageview();"
+echo "    };"
+echo "    var x = document.getElementsByTagName('script')[0];"
+echo "    x.parentNode.insertBefore(s, x);"
+echo "  })();"
+echo "</script>"
+

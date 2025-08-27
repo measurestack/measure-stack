@@ -10,14 +10,15 @@ GCP_TABLE_ID="events"
 
 # ========================= App Service Settings =========================
 SERVICE_NAME="measure-app"
+TRACKER_DOMAIN="" #leave empty to use default cloud run domain, set to your custom domain if you want to map a domain but then follow https://cloud.google.com/run/docs/mapping-custom-domains#run, e.g. "tracking.yourdomain.com"
 SERVICE_URL="" #leave empty for auto-detection; set to the trackingendpoint if autodetection does not work for you ,e.g. "https://tracking.yourdomain.com"
 CLIENT_ID_COOKIE_NAME="_ms_cid"
 HASH_COOKIE_NAME="_ms_h"
-COOKIE_DOMAIN="yourdomain.com" #ADAPT!
+COOKIE_DOMAIN="yourdomain.com" #ADAPT! to the website domain you want to track, e.g. "yourdomain.com"
 DAILY_SALT="change-me-in-production"
 GEO_ACCOUNT="" # get account from https://www.maxmind.com/en/geolite-free-ip-geolocation-data if you want IP geolocation
 GEO_KEY=""
-CORS_ORIGIN="yourdomain.com" #ADAPT! comma separated list of allowed origins
+CORS_ORIGIN="https://yourdomain.com" #ADAPT! comma separated list of allowed origins (your website(s) inkl schema, e.g. "https://yourdomain.com,https://www.yourdomain.com")
 
 # ========================= App Deployment Settings =========================
 MEMORY="512Mi"
@@ -41,7 +42,6 @@ DBT_MAX_RETRIES="3"
 DBT_TIMEOUT="1800s"
 DBT_SCHEDULE="0 6 * * *"
 DBT_TARGET="prod"
-DBT_SCHEDULER_JOB_NAME="measure-dbt-scheduler"
 
 # ========================= Derived Values =========================
 # App service account and image
@@ -51,3 +51,4 @@ IMAGE_NAME="gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME"
 # DBT service account and resources
 DBT_SA_EMAIL="$DBT_SA_NAME@$GCP_PROJECT_ID.iam.gserviceaccount.com"
 DBT_IMAGE_NAME="gcr.io/$GCP_PROJECT_ID/$DBT_JOB_NAME"
+DBT_SCHEDULER_JOB_NAME="$DBT_JOB_NAME-scheduler"

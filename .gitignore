@@ -35,3 +35,6 @@ app.log
 
 **/scripts/dbt_deploy.log
 **/scripts/deploy.log
+
+# builds
+dist/
