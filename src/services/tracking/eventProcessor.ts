@@ -4,7 +4,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { getConnInfo } from 'hono/bun';
 import { TrackingEvent, ApiResponse } from '../../types/events';
 import { getHashh } from '../../utils/crypto/hashing';
-import { sanitizeIP, truncateIP } from '../../utils/helpers/ipUtils';
+import { sanitizeIP, truncateIP, getClientIP } from '../../utils/helpers/ipUtils';
 import { config } from '../../config/environment';
 import { BigQueryService } from '../storage/bigQueryService';
 import { getGeoIPData } from '../analytics/geoLocation';
@@ -30,7 +30,7 @@ export class EventProcessor {
       const trackingData: TrackingEvent = { ...query, ...form, ...json };
 
       const now = new Date().toISOString();
-      const ip = req.header('X-Forwarded-For') || getConnInfo(context).remote?.address;
+      const ip = getClientIP(req.header(), getConnInfo(context).remote?.address);
 
       trackingData.ts = trackingData.ts || now;
       trackingData.et = trackingData.et || "event";

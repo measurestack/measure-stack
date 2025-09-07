@@ -20,6 +20,13 @@ export function truncateIP(ip: string): string {
   return parts.slice(0, 3).join('.') + '.0';
 }
 
+export function getClientIP(headers: Record<string, string | undefined>, remoteAddress?: string): string {
+  return headers['X-Forwarded-For'] ||
+         headers['x-forwarded-for'] ||
+         remoteAddress ||
+         '127.0.0.1';
+}
+
 export function sanitizeIP(ip: string): string {
   // For local testing
   if (ip.includes("127.0.0.1")) return "2a02:3100:1da8:1d00:d575:624d:f65a:e8ae" // "141.20.2.3";
