@@ -16,7 +16,7 @@ Welcome to the Measure.js documentation! This is a comprehensive web analytics t
 - [Analytics Dashboard](./analytics/dashboard.md) - Understanding your analytics data
 
 ### 🔒 Security & Privacy
-- [Privacy Features](./security/privacy.md) - GDPR compliance and privacy controls
+- [Privacy Features](./privacy.md) - GDPR compliance and privacy controls
 - [Security Best Practices](./security/best-practices.md) - Security considerations
 
 ### 📱 Client Integration

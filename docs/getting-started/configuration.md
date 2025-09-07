@@ -82,15 +82,9 @@ GCP_TABLE_ID="events"               # Events table name
 
 ## Advanced Configuration
 
-### Privacy Settings
+### Cookie Settings
 
 ```bash
-# Security salt for hashing (work in progress - will be auto-rotated daily)
-DAILY_SALT="change-me-in-production"
-
-**Note**: `DAILY_SALT` is work in progress and will be automatically rotated daily in future versions.
-
-### Cookie Settings
 # Cookie configuration
 CLIENT_ID_COOKIE_NAME="_ms_cid"     # Client ID cookie name
 HASH_COOKIE_NAME="_ms_h"            # Hash cookie name

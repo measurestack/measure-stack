@@ -36,7 +36,7 @@ export class EventProcessor {
       trackingData.et = trackingData.et || "event";
       trackingData.ua = trackingData.ua || req.header('user-agent');
       trackingData.c = trackingData.c || getCookie(context, config.clientIdCookieName);
-      trackingData.h = trackingData.h || getHashh(ip || '', trackingData.ua || '');
+      trackingData.h = trackingData.h || await getHashh(ip || '', trackingData.ua || '');
       trackingData.h1 = trackingData.h1 || getCookie(context, config.hashCookieName) || trackingData.h;
       trackingData.ch = ip;
 

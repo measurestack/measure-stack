@@ -1,9 +1,7 @@
 import { WebServiceClient } from '@maxmind/geoip2-node';
-import { Firestore } from '@google-cloud/firestore';
 import { GeoLocationInfo } from '../../types/user';
 import { config } from '../../config/environment';
-
-const firestore = new Firestore();
+import { getFirestore } from '../storage/firestoreService';
 const geoClient = new WebServiceClient(
   config.geo.account,
   config.geo.key,
@@ -11,6 +9,7 @@ const geoClient = new WebServiceClient(
 );
 
 export async function getGeoIPData(ipAddress: string): Promise<GeoLocationInfo | null> {
+  const firestore = getFirestore();
   const geoipCollection = firestore.collection('geoip');
 
   try {
