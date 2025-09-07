@@ -25,4 +25,5 @@ RUN bun build src/api/index.ts --outdir ./dist --target bun --external useragent
 EXPOSE 3000
 
 # Command to start the server (using pre-built JS)
-CMD ["bun", "run", "dist/index.js"]
+CMD ["bun", "run", "src/api/index.ts"]
+#CMD ["bun", "run", "dist/index.js"] # Note, firestore access in cloud run currently fails when running pre-compiled code
