@@ -28,7 +28,7 @@ Welcome to the Measure.js documentation! This is a comprehensive web analytics t
 Measure.js is a privacy-focused web analytics solution that provides:
 
 - **Fully under your control**: Deploy in your own cloud environment, fully own your data, customize as needed
-- **Privacy Compliant**: Built with GDPR compliance in mind, optional low privacy impact, time limited serverside hashing for session detection
+- **Privacy Compliant**: Built with GDPR compliance in mind, Consent awart, cookie and cookie-less mode, with privacy friendly hash salt rotation
 - **Real-time Tracking**: Track user events and pageviews in real-time
 - **Geographic Analytics**: IP-based location tracking
 - **Device Detection**: Automatic device and browser detection
