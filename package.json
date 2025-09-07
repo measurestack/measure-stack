@@ -1,6 +1,7 @@
 {
   "name": "measure-js",
   "version": "0.1.0",
+  "license": "MIT",
   "scripts": {
     "dev": "bun run --watch src/api/index.ts",
     "build": "tsc",
