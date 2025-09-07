@@ -4,7 +4,7 @@ Welcome to the Measure.js documentation! This is a comprehensive web analytics t
 
 
 ### 🚀 Getting Started
-- [Quick Start](.getting-started/quick-start.md) - Bring up analytics in minutes
+- [Quick Start](./getting-started/quick-start.md) - Bring up analytics in minutes
 - [Configuration](./getting-started/configuration.md) - Environment and application configuration
 
 ### 📖 API Reference
