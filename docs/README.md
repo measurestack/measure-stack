@@ -1,6 +1,6 @@
-# Measure.js Documentation
+# measureStack Documentation
 
-Welcome to the Measure.js documentation! This is a comprehensive web analytics tracking system built with TypeScript, Bun/Hono and dbt, designed to provide lean, privacy-compliant, and fully under your control analytics for web applications.
+Welcome to the measureStack documentation! This is a comprehensive web analytics tracking system built with TypeScript, Bun/Hono and dbt, designed to provide lean, privacy-compliant, and fully under your control analytics for web applications.
 
 
 ### 🚀 Getting Started
@@ -25,7 +25,7 @@ Welcome to the Measure.js documentation! This is a comprehensive web analytics t
 
 ## 🎯 Quick Overview
 
-Measure.js is a privacy-focused web analytics solution that provides:
+measureStack is a privacy-focused web analytics solution that provides:
 
 - **Fully under your control**: Deploy in your own cloud environment, fully own your data, customize as needed
 - **Privacy Compliant**: Built with GDPR compliance in mind, Consent awart, cookie and cookie-less mode, with privacy friendly hash salt rotation
@@ -71,5 +71,5 @@ Measure.js is a privacy-focused web analytics solution that provides:
 ---
 
 
-**Version**: 0.1.0
+**Version**: 0.2.0
 **Last Updated**: September 2025

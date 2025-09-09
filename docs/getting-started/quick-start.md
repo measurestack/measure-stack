@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Deploy Measure.js analytics to production in minutes.
+Deploy measureStack to production in minutes.
 
 ## Prerequisites
 
@@ -15,8 +15,8 @@ Deploy Measure.js analytics to production in minutes.
 ## 1. Clone and Configure
 
 ```bash
-git clone https://github.com/your-repo/measure-js.git
-cd measure-js
+git clone https://github.com/measurestack/measure-stack.git
+cd measure-stack
 ```
 
 ## 2. Essential Configuration
