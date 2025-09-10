@@ -28,6 +28,7 @@ Welcome to the measureStack documentation! This is a comprehensive web analytics
 measureStack is a privacy-focused web analytics solution that provides:
 
 - **Fully under your control**: Deploy in your own cloud environment, fully own your data, customize as needed
+- **Setup in minutes**: Simply run the deploy script to setup Google Cloud Resources automatically
 - **Privacy Compliant**: Built with GDPR compliance in mind, Consent awart, cookie and cookie-less mode, with privacy friendly hash salt rotation
 - **Real-time Tracking**: Track user events and pageviews in real-time
 - **Geographic Analytics**: IP-based location tracking
