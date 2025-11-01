@@ -1,12 +1,16 @@
 import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { getFirestore } from '../../services/storage/firestoreService';
+import { getFirestore } from './firestore';
 
 let cachedSalt: { date: string; salt: string } | null = null;
 
+/**
+ * Get or create daily salt with atomic transaction
+ * Salt is stored in Firestore and cached in memory
+ */
 async function getDailySalt(): Promise<string> {
   const today = new Date().toISOString().split('T')[0];
-  
+
   // Return cached salt if it's for today
   if (cachedSalt && cachedSalt.date === today) {
     return cachedSalt.salt;
@@ -17,7 +21,7 @@ async function getDailySalt(): Promise<string> {
 
   const cleanupOldSalts = () => {
     // Delete salts older than yesterday for privacy reasons
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];    
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     firestore.collection('salts').where('__name__', '<', cutoff).get()
       .then(snapshot => {
         const batch = firestore.batch();
@@ -32,7 +36,7 @@ async function getDailySalt(): Promise<string> {
     if (doc.exists) {
       return doc.data()?.salt;
     }
-    
+
     const newSalt = uuidv4();
     transaction.set(saltDoc, { salt: newSalt });
     cleanupOldSalts();
@@ -44,12 +48,19 @@ async function getDailySalt(): Promise<string> {
   return salt;
 }
 
-export async function getHashh(ip: string, userAgent: string): Promise<string> {
+/**
+ * Generate privacy-preserving hash from IP and user agent
+ * Uses daily rotating salt for privacy
+ */
+export async function getHash(ip: string, userAgent: string): Promise<string> {
   const dailySalt = await getDailySalt();
   const combined = `${ip}${userAgent}${dailySalt}`;
   return createHash('sha256').update(combined).digest('hex');
 }
 
+/**
+ * Generate simple SHA256 hash from data
+ */
 export function generateHash(data: string): string {
   return createHash('sha256').update(data).digest('hex');
 }

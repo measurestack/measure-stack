@@ -1,8 +1,11 @@
-# Use the official Bun image
-FROM oven/bun:latest
+# Use the official Bun image (pinned to specific version)
+FROM oven/bun:1.3.1
 
 # Set the Working Directory to /app
 WORKDIR /app
+
+# Set NODE_ENV to production
+ENV NODE_ENV=production
 
 # Copy the static JS function
 COPY ./static ./static
