@@ -7,7 +7,8 @@ import { getConnInfo } from 'hono/bun';
 import { v4 as uuidv4 } from 'uuid';
 import type { Context } from 'hono';
 import { getHash } from '../services/salt';
-import { getClientIP, enrichAndProcessEvent, storeEvent } from '../services/enrichment';
+import { getClientIP, enrichAndProcessEvent } from '../services/enrichment';
+import { storeEvent } from '../services/storage';
 import type { TrackingEvent } from '../services/enrichment';
 
 // Load environment variables
