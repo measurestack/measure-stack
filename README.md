@@ -5,7 +5,8 @@ Privacy-first web analytics platform. Self-hosted, simple, and extensible.
 ## Quick Install
 
 ```bash
-cd deploy && cp config.source.template config.source && vim config.source  # Edit with your settings; you need a Google Cloud Project
+cd deploy && cp config.source.template deploy/config.source
+# Then edit with your settings; bring your own Google Cloud Project
 ./deploy_app.sh      # Deploy tracking API
 ./deploy_dbt.sh      # Deploy analytics pipeline
 ```

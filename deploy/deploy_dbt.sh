@@ -28,6 +28,9 @@ if ! gcloud iam service-accounts describe "$DBT_SA_EMAIL" &>/dev/null; then
     gcloud iam service-accounts create "$DBT_SA_NAME" --display-name="DBT Service Account"
 fi
 
+# Grant Cloud Run Invoker permission for the service account (needed for Cloud Scheduler)
+gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$DBT_SA_EMAIL" --role="roles/run.invoker"
+
 # Grant BigQuery permissions
 gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$DBT_SA_EMAIL" --role="roles/bigquery.dataEditor"
 gcloud projects add-iam-policy-binding "$GCP_PROJECT_ID" --member="serviceAccount:$DBT_SA_EMAIL" --role="roles/bigquery.jobUser"
