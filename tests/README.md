@@ -1,120 +1,56 @@
-# Test Suite Documentation
+# End-to-End Tests
 
-## Overview
+Comprehensive test suite for MeasureStack that verifies all functionality by running the server, sending requests, and checking BigQuery storage.
 
-This test suite covers the measure-js application with different types of tests:
+## Prerequisites
 
-- **Unit Tests**: Test individual functions and components in isolation
-- **Integration Tests**: Test API endpoints and component interactions
-- **End-to-End Tests**: Test complete user flows
-
-## Test Structure
-
-```
-tests/
-├── unit/                    # Unit tests
-│   ├── utils/              # Utility function tests
-│   │   ├── ipUtils.test.ts # IP address utility tests
-│   │   └── crypto.test.ts  # Cryptographic utility tests
-│   ├── config/             # Configuration tests
-│   │   └── environment.test.ts
-│   └── services/           # Service layer tests
-├── integration/            # Integration tests
-│   └── api/               # API endpoint tests
-│       ├── events.test.ts # Event tracking endpoint tests
-│       └── health.test.ts # Health check endpoint tests
-└── e2e/                   # End-to-end tests
-    └── basic-flow.test.ts # Complete user flow tests
-```
+- `.env` file configured with your GCP credentials and settings
+- BigQuery dataset created (`measure_js.events` table)
+- Google Cloud authentication set up locally
 
 ## Running Tests
 
-### All Tests
 ```bash
-bun test
-```
+# Run all E2E tests
+bun test tests/e2e/server.test.ts
 
-### Specific Test Types
-```bash
-# Unit tests only
-bun test tests/unit/
-
-# Integration tests only
-bun test tests/integration/
-
-# End-to-end tests only
-bun test tests/e2e/
-```
-
-### Watch Mode
-```bash
-bun test --watch
+# Run with watch mode
+bun test --watch tests/e2e/server.test.ts
 ```
 
 ## Test Coverage
 
-### Unit Tests ✅
-- **IP Utilities**: IPv4/IPv6 truncation, client IP detection, IP sanitization
-- **Crypto Utilities**: Hash generation, consistent hashing
-- **Environment Configuration**: Config structure validation
+The test suite covers:
 
-### Integration Tests ⚠️
-- **Health Endpoint**: ✅ Working correctly
-- **Events Endpoint**: ⚠️ Failing due to Hono/Bun adapter issues in test environment
+1. **Root endpoint** - Verifies server responds correctly
+2. **Static file serving** - Tests `measure.js` script delivery
+3. **POST events with JSON** - Tests event ingestion and BigQuery storage
+4. **GET events with query params** - Tests alternative event format
+5. **Consent cookie management** - Verifies GDPR cookie handling
+6. **CORS protection** - Tests allowed and disallowed origins
+7. **Device enrichment** - Verifies user-agent parsing
+8. **Hash consistency** - Ensures stable client identification
 
-### End-to-End Tests ⚠️
-- **Basic Flow**: ⚠️ Same adapter issues as integration tests
+## Configuration
 
-## Known Issues
+Tests use environment variables from `.env`:
 
-1. **Hono/Bun Adapter**: The `getConnInfo` function from Hono's Bun adapter expects a specific environment setup that's not available in the test environment. This affects:
-   - Event processing tests
-   - Integration tests for the events endpoint
-   - End-to-end tests
+- `GCP_PROJECT_ID` - Your Google Cloud project
+- `GCP_DATASET_ID` - BigQuery dataset (default: `measure_js`)
+- `GCP_TABLE_ID` - Events table (default: `events`)
+- `CORS_ORIGIN` - Allowed origins (first one used for testing)
+- `TEST_URL` - Optional: test against deployed server instead of localhost
 
-2. **Environment Variables**: Some tests may fail if environment variables are set differently than expected.
+## Testing Against Production
 
-## Test Results Summary
+To test a deployed instance:
 
-### Passing Tests ✅
-- IP utility functions (10/10)
-- Crypto utility functions (6/6)
-- Environment configuration structure (4/4)
-- Health endpoint integration (2/2)
-
-### Failing Tests ❌
-- Event processing integration tests (4/4) - Due to Hono adapter issues
-- End-to-end tests - Due to same adapter issues
-
-## Recommendations
-
-1. **Mock the Hono Context**: For unit tests of services that use Hono context, create proper mocks
-2. **Test Environment Setup**: Set up a proper test environment that mimics the Bun runtime
-3. **Separate Unit and Integration**: Keep unit tests focused on business logic without framework dependencies
-
-## Adding New Tests
-
-1. **Unit Tests**: Place in `tests/unit/` with descriptive names
-2. **Integration Tests**: Place in `tests/integration/` for API endpoint testing
-3. **E2E Tests**: Place in `tests/e2e/` for complete flow testing
-
-### Example Unit Test
-```typescript
-import { describe, it, expect } from 'bun:test';
-import { myFunction } from '../../src/utils/myUtils';
-
-describe('My Utils', () => {
-  it('should work correctly', () => {
-    const result = myFunction('input');
-    expect(result).toBe('expected output');
-  });
-});
+```bash
+TEST_URL=https://your-cloud-run-url.run.app bun test tests/e2e/server.test.ts
 ```
 
-## Test Best Practices
+## Troubleshooting
 
-1. **Descriptive Names**: Use clear, descriptive test names
-2. **Arrange-Act-Assert**: Structure tests with clear sections
-3. **Isolation**: Each test should be independent
-4. **Mocking**: Mock external dependencies appropriately
-5. **Coverage**: Aim for high test coverage of business logic
+- **BigQuery timeout errors**: Increase `jobTimeoutMs` in test file
+- **CORS failures**: Check `CORS_ORIGIN` in `.env` matches test expectations
+- **Server startup issues**: Ensure port 3000 is available
