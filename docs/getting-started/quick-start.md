@@ -34,12 +34,17 @@ Edit `deploy/config.source` - **ONLY change these required settings**:
 # REQUIRED: Your Google Cloud Project ID
 GCP_PROJECT_ID="your-project-id"
 
-# REQUIRED: Your website domain for cookies  
+# REQUIRED: Your website domain for cookies
 COOKIE_DOMAIN="yourdomain.com"
 
 # REQUIRED: Allowed origins (your website URLs)
 CORS_ORIGIN="https://yourdomain.com,https://www.yourdomain.com"
+
+# OPTIONAL: Custom domain for tracking (see Configuration guide)
+TRACKER_DOMAIN=""  # Leave empty to use Cloud Run URL
 ```
+
+**Note:** Without a custom domain, tracking works but cookies won't be set (cookieless mode only). For cookie support, set `TRACKER_DOMAIN` - see [Custom Domain Configuration](./configuration.md#custom-domain).
 
 All other settings can remain as defaults for now.
 

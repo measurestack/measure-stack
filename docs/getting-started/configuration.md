@@ -40,17 +40,16 @@ To use your own domain instead of the default Cloud Run URL:
 ```bash
 # Set your custom tracking domain
 TRACKER_DOMAIN="tracking.yourdomain.com"
-
-# Optional: Override service URL if auto-detection fails
-SERVICE_URL="https://tracking.yourdomain.com"
 ```
 
-**Note**: You must follow [Google Cloud's custom domain mapping guide](https://cloud.google.com/run/docs/mapping-custom-domains#run) to set up the domain mapping.
+**Important:** Without a custom domain, cookies won't work (tracking will still function in cookieless mode).
 
-**Note**: Not all regions allow cloud run domain mapping. make sure to chose a region that supports it (see link above) using:
+The deployment script automatically creates the domain mapping. You need to:
+1. Add DNS records as shown in the [Google Cloud custom domain guide](https://cloud.google.com/run/docs/mapping-custom-domains#run)
+2. Choose a region that supports custom domains (see link above):
 
-```
-REGION="europe-west1"               # GCP region for all resources
+```bash
+REGION="europe-west1"  # Verify region supports custom domains
 ```
 
 ## Geolocation Configuration
