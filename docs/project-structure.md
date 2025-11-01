@@ -1,356 +1,311 @@
 # Project Structure
 
-This document provides a comprehensive overview of the Measure.js project structure, explaining the purpose and organization of each component.
+This document provides an overview of the MeasureStack project structure. The project follows a **simplicity-first** architecture - prioritizing ease of understanding over comprehensive features.
 
 ## 📁 Root Directory Structure
 
 ```
-measure-js/
-├── 📁 src/                    # Source code
-│   ├── 📁 api/               # API layer
-│   ├── 📁 config/            # Configuration
-│   ├── 📁 services/          # Business logic
-│   ├── 📁 types/             # TypeScript types
-│   └── 📁 utils/             # Utility functions
-├── 📁 data/                  # Data pipeline
-│   └── 📁 dbt/              # dbt analytics
-├── 📁 docs/                  # Documentation
-├── 📁 infrastructure/        # Deployment configs
-├── 📁 static/               # Static assets
-├── 📁 tests/                # Test suite
-├── 📄 package.json          # Dependencies & scripts
-├── 📄 tsconfig.json         # TypeScript config
-├── 📄 Dockerfile            # Container config
-└── 📄 example.env           # Environment template
+measure-stack/
+├── 📁 src/                    # Source code (5 files)
+│   ├── 📄 api/index.ts       # Main API server
+│   └── 📁 services/          # Core services
+│       ├── 📄 firestore.ts   # Firestore initialization
+│       ├── 📄 salt.ts        # Daily salt & hashing
+│       ├── 📄 geoip.ts       # GeoIP lookup
+│       └── 📄 enrichment.ts  # Event enrichment & BigQuery
+├── 📁 data/                   # Data pipeline
+│   └── 📁 dbt/               # dbt analytics
+├── 📁 deploy/                 # Deployment (5 files)
+│   ├── 📄 config.source      # Main configuration
+│   ├── 📄 deploy_app.sh      # App deployment
+│   ├── 📄 deploy_dbt.sh      # DBT deployment
+│   ├── 📄 quick_test.sh      # API testing
+│   └── 📄 bq_table_schema.json # BigQuery schema
+├── 📁 docs/                   # Documentation
+├── 📁 static/                 # Static assets
+│   └── 📄 measure.js         # Browser SDK
+├── 📁 tests/                  # Test suite
+├── 📄 package.json           # Dependencies & scripts
+├── 📄 tsconfig.json          # TypeScript config
+├── 📄 Dockerfile             # Container config
+├── 📄 .env                   # Local environment
+└── 📄 example.env            # Environment template
 ```
 
 ## 🔧 Source Code (`src/`)
 
-### API Layer (`src/api/`)
+The entire application consists of **just 5 TypeScript files** (~488 total lines):
 
-The API layer handles HTTP requests and responses using the Hono framework.
+### Main API Server (`src/api/index.ts`) - 145 lines
 
-```
-src/api/
-├── 📄 index.ts              # Main API entry point
-├── 📁 middleware/           # Request/response middleware
-│   ├── 📄 cors.ts          # CORS configuration
-│   └── 📄 rateLimit.ts     # Rate limiting
-└── 📁 routes/              # API route handlers
-    ├── 📄 events.ts        # Event tracking endpoints
-    └── 📄 health.ts        # Health check endpoint
-```
-
-**Key Components:**
-
-- **`index.ts`**: Main application entry point, configures middleware and routes
-- **`middleware/cors.ts`**: Cross-Origin Resource Sharing configuration
-- **`middleware/rateLimit.ts`**: Rate limiting to prevent abuse
-- **`routes/events.ts`**: Event tracking API endpoints
-- **`routes/health.ts`**: Health monitoring endpoint
-
-### Configuration (`src/config/`)
-
-Application configuration and environment management.
-
-```
-src/config/
-└── 📄 environment.ts        # Environment variables & config
-```
+The main entry point that combines everything:
 
 **Features:**
-- Environment variable management
-- Type-safe configuration
-- Default values for development
-- Security settings (CORS, rate limiting)
+- Hono web server (port 3000)
+- Inline CORS middleware
+- Event handler (GET/POST endpoints)
+- Cookie-based consent management
+- Background processing with `setImmediate()`
+- Supports JSON, form data, and query parameters
 
-### Services (`src/services/`)
+**Key Endpoints:**
+- `GET /` - Root endpoint
+- `GET /measure.js` - Serves tracking script
+- `GET/POST /events` - Event tracking
 
-Business logic and external service integrations.
+### Firestore Service (`src/services/firestore.ts`) - 16 lines
 
-```
-src/services/
-├── 📁 analytics/            # Analytics processing
-│   └── 📄 geoLocation.ts   # Geographic data processing
-├── 📁 storage/             # Data storage
-│   └── 📄 bigQueryService.ts # BigQuery integration
-└── 📁 tracking/            # Event tracking
-    └── 📄 eventProcessor.ts # Event processing logic
-```
+Centralized Firestore initialization:
 
-**Key Services:**
+**Features:**
+- Singleton instance pattern
+- Configurable database ID
+- Used by salt and GeoIP services
 
-- **`analytics/geoLocation.ts`**: IP geolocation using MaxMind
-- **`storage/bigQueryService.ts`**: Google BigQuery data storage
-- **`tracking/eventProcessor.ts`**: Event processing and enrichment
+### Salt & Hashing (`src/services/salt.ts`) - 66 lines
 
-### Types (`src/types/`)
+Privacy-preserving hash generation with daily rotating salts:
 
-TypeScript type definitions for the application.
+**Features:**
+- Atomic daily salt generation (Firestore transactions)
+- In-memory caching
+- Automatic cleanup of old salts (>24 hours)
+- SHA256 hash generation
 
-```
-src/types/
-├── 📄 events.ts            # Event data types
-└── 📄 user.ts             # User-related types
-```
+**Functions:**
+- `getDailySalt()` - Get or create today's salt
+- `getHash(ip, userAgent)` - Generate privacy hash
+- `generateHash(data)` - Simple SHA256 hash
 
-**Type Definitions:**
-- `TrackingEvent`: Raw event data structure
-- `ProcessedEvent`: Enriched event data
-- `ConsentSettings`: User consent preferences
-- `ApiResponse`: API response formats
+### GeoIP Service (`src/services/geoip.ts`) - 83 lines
 
-### Utils (`src/utils/`)
+Pluggable IP geolocation lookup:
 
-Utility functions and helpers.
+**Features:**
+- MaxMind GeoIP2 integration
+- Firestore caching to reduce API calls
+- Gracefully disabled if credentials not provided
+- Returns continent, country, country_code, city
 
-```
-src/utils/
-├── 📁 crypto/              # Cryptographic utilities
-│   └── 📄 hashing.ts      # Hash generation
-├── 📁 helpers/             # Helper functions
-│   └── 📄 ipUtils.ts      # IP address utilities
-└── 📁 validation/          # Data validation
-```
+**Function:**
+- `getGeoIPData(ipAddress)` - Lookup and cache geo data
 
-**Utilities:**
-- **`crypto/hashing.ts`**: Privacy-preserving hash generation
-- **`helpers/ipUtils.ts`**: IP address detection and sanitization
-- **`validation/`**: Data validation schemas
+### Enrichment Service (`src/services/enrichment.ts`) - 178 lines
 
-## 📊 Data Pipeline (`data/`)
+Event enrichment and BigQuery storage:
 
-### dbt Analytics (`data/dbt/measure_js/`)
+**Features:**
+- IP utilities: `truncateIP()`, `getClientIP()`, `sanitizeIP()`
+- User-agent parsing (device, browser, OS)
+- Event enrichment with geo and device data
+- BigQuery storage with explicit project ID
 
-Data transformation and analytics pipeline.
+**Functions:**
+- `getClientIP()` - Extract IP from headers
+- `truncateIP()` - Privacy-preserving IP truncation
+- `enrichAndProcessEvent()` - Enrich event with device/geo data
+- `storeEvent()` - Store in BigQuery
+
+## 📊 Data Pipeline (`data/dbt/`)
+
+dbt analytics pipeline for data transformation:
 
 ```
 data/dbt/measure_js/
 ├── 📁 models/              # Data transformation models
 │   ├── 📁 core/           # Core business logic
 │   ├── 📁 mart/           # Analytics-ready tables
-│   └── 📁 staging/        # Data cleaning & preparation
+│   └── 📁 staging/        # Data cleaning
 ├── 📁 macros/             # Reusable SQL macros
-├── 📁 tests/              # Data quality tests
-├── 📁 seeds/              # Reference data
 ├── 📄 dbt_project.yml     # dbt configuration
 └── 📄 README.md           # Pipeline documentation
 ```
 
 **Model Categories:**
-
 - **`staging/`**: Raw data cleaning and preparation
 - **`core/`**: Business logic and user/session identification
 - **`mart/`**: Analytics-ready aggregated tables
 
+## 🚀 Deployment (`deploy/`)
+
+Simple flat structure with all deployment files:
+
+### Configuration (`deploy/config.source`)
+
+Main configuration file with all GCP settings, service config, and deployment settings.
+
+**Required settings:**
+- `GCP_PROJECT_ID` - Your GCP project
+- `COOKIE_DOMAIN` - Your website domain
+- `CORS_ORIGIN` - Allowed origins
+
+**Optional settings:**
+- `GEO_ACCOUNT`, `GEO_KEY` - MaxMind credentials
+- `TRACKER_DOMAIN` - Custom domain
+- Resource allocation (MEMORY, CPU, etc.)
+
+### Deployment Scripts
+
+- **`deploy_app.sh`** - Deploy main app to Cloud Run
+- **`deploy_dbt.sh`** - Deploy dbt pipeline
+- **`quick_test.sh`** - Test all API endpoints
+
+### BigQuery Schema (`deploy/bq_table_schema.json`)
+
+Defines the BigQuery table structure for events:
+- Event metadata (timestamp, event_type, event_name)
+- User identification (client_id, user_id, hash)
+- Device info (type, browser, OS)
+- Location data (ip_trunc, country, city)
+- Consent tracking
+
+## 📦 Static Assets (`static/`)
+
+Client-side JavaScript SDK:
+
+```
+static/
+├── 📄 measure.js          # Generated tracking script
+└── 📄 measure.js.template # Template with {{ endpoint }}
+```
+
+**Features:**
+- Lightweight SDK
+- Privacy-focused design
+- Consent management
+- Pageview and event tracking
+
 ## 🧪 Testing (`tests/`)
 
-Comprehensive test suite covering all application layers.
+Test suite structure:
 
 ```
 tests/
 ├── 📁 unit/               # Unit tests
-│   ├── 📁 config/        # Configuration tests
-│   ├── 📁 services/      # Service layer tests
-│   └── 📁 utils/         # Utility function tests
 ├── 📁 integration/        # Integration tests
-│   └── 📁 api/           # API endpoint tests
-├── 📁 e2e/               # End-to-end tests
-├── 📄 README.md          # Test documentation
-└── 📄 test-runner.ts     # Test runner configuration
+└── 📁 e2e/               # End-to-end tests
 ```
 
-**Test Coverage:**
+**Test Commands:**
+```bash
+bun test                  # Run all tests
+bun test:unit            # Unit tests only
+bun test:integration     # Integration tests only
+bun test:e2e            # E2E tests only
+bun test:watch          # Watch mode
+```
 
-- **Unit Tests**: Individual function testing
-- **Integration Tests**: API endpoint testing
-- **E2E Tests**: Complete user flow testing
+## 🏗️ Architecture Overview
+
+### Simplified Stack (5 Files)
+
+```
+┌──────────────────────────────────────┐
+│   src/api/index.ts (145 lines)      │
+│   • Hono server                      │
+│   • CORS inline                      │
+│   • Event handler                    │
+│   • Cookie consent                   │
+└─────────────┬────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────┐
+│   src/services/ (4 files, 343 lines)   │
+├─────────────────────────────────────────┤
+│ firestore.ts    • Firestore singleton  │
+│ salt.ts         • Daily salt & hashing │
+│ geoip.ts        • GeoIP lookup         │
+│ enrichment.ts   • Enrichment & BigQuery│
+└─────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────┐
+│   External Services                     │
+├─────────────────────────────────────────┤
+│ • Firestore (salt storage, geo cache)  │
+│ • BigQuery (event storage)             │
+│ • MaxMind (optional GeoIP)             │
+└─────────────────────────────────────────┘
+```
+
+### Key Design Principles
+
+1. **Simplicity First** - Only 5 core files, ~488 total lines
+2. **Flat Structure** - No deep nesting, everything easy to find
+3. **Privacy-Preserving** - Daily salt rotation, IP truncation, consent management
+4. **Pluggable GeoIP** - Works without credentials, optional feature
+5. **Background Processing** - Non-blocking with `setImmediate()`
+6. **Explicit Configuration** - BigQuery project ID explicitly passed
+
+## 🔒 Privacy & Security
+
+### Privacy Protection
+- **IP Truncation**: Last octet removed (IPv4), /64 for IPv6
+- **Daily Salt Rotation**: Hashes change daily, stored in Firestore
+- **Consent Management**: Cookie-based opt-in/opt-out
+- **Data Minimization**: Only essential data collected
+
+### Security Features
+- **CORS Protection**: Origin validation
+- **Cookie Security**: Domain-scoped, 1-year expiry
+- **Environment Isolation**: Separate dev/prod configs
+- **Service Accounts**: Least-privilege IAM roles
+
+## 📈 Development Workflow
+
+### Local Development
+```bash
+bun install          # Install dependencies
+bun run dev         # Start dev server (with watch)
+bun src/api/index.ts # Run directly
+```
+
+### Testing
+```bash
+bun test            # Run all tests
+bun test:watch     # Watch mode
+```
+
+### Deployment
+```bash
+./deploy/deploy_app.sh   # Deploy to Cloud Run
+./deploy/deploy_dbt.sh   # Deploy dbt pipeline
+./deploy/quick_test.sh   # Test deployed API
+```
 
 ## 📚 Documentation (`docs/`)
 
-Comprehensive documentation for users and developers.
-
 ```
 docs/
-├── 📁 getting-started/    # Quick start guides
+├── 📁 getting-started/    # Quick start & configuration
 ├── 📁 api/               # API documentation
-├── 📁 integration/       # Client integration guides
+├── 📁 integration/       # Client integration
 ├── 📁 analytics/         # Data pipeline docs
-├── 📁 deployment/        # Deployment guides
-├── 📁 development/       # Development guides
-└── 📄 README.md         # Documentation index
+└── 📄 project-structure.md # This file
 ```
-
-## 🚀 Infrastructure (`infrastructure/`)
-
-Deployment and infrastructure configuration.
-
-```
-infrastructure/
-├── 📁 docker/            # Docker configuration
-│   └── 📄 Dockerfile     # Container definition
-└── 📁 scripts/           # Deployment scripts
-    └── 📄 deploy_app.sh  # Deployment automation
-```
-
-## 📦 Static Assets (`static/`)
-
-Client-side JavaScript SDK.
-
-```
-static/
-└── 📄 measure.js         # Browser tracking SDK
-```
-
-**Features:**
-- Lightweight (~2KB minified)
-- Privacy-focused design
-- Cross-browser compatibility
-- Consent management
 
 ## 🔧 Configuration Files
 
 ### `package.json`
-- Dependencies and scripts
-- Build configuration
-- Test commands
+- Dependencies (Hono, Google Cloud SDKs, etc.)
+- Scripts (dev, test, build)
+- Bun engine requirement (>=1.3.1)
 
 ### `tsconfig.json`
 - TypeScript compilation settings
-- Module resolution
-- Strict type checking
+- Module resolution (NodeNext)
+- Strict type checking disabled for `noImplicitAny`
 
 ### `Dockerfile`
-- Multi-stage build
-- Production optimization
-- Security hardening
+- Based on Bun 1.3.1
+- NODE_ENV=production for proper timeouts
+- Runs uncompiled TypeScript (compiled version has Firestore bug)
 
-### `example.env`
-- Environment variable template
-- Configuration examples
-- Security best practices
+### `.env` / `example.env`
+- Local development configuration
+- Template for new installations
+- No secrets committed to git
 
-## 🏗️ Architecture Patterns
+---
 
-### 1. **Layered Architecture**
-```
-┌─────────────────┐
-│   API Layer     │ ← HTTP requests/responses
-├─────────────────┤
-│  Service Layer  │ ← Business logic
-├─────────────────┤
-│  Storage Layer  │ ← Data persistence
-└─────────────────┘
-```
-
-### 2. **Middleware Pattern**
-- CORS handling
-- Rate limiting
-- Request validation
-- Error handling
-
-### 3. **Service Pattern**
-- Event processing
-- Data enrichment
-- External integrations
-- Caching strategies
-
-### 4. **Repository Pattern**
-- BigQuery integration
-- Data access abstraction
-- Query optimization
-
-## 🔒 Security Considerations
-
-### 1. **Privacy Protection**
-- IP address truncation
-- Consent management
-- Data minimization
-- GDPR compliance
-
-### 2. **Rate Limiting**
-- Per-IP request limits
-- Burst protection
-- Configurable thresholds
-
-### 3. **CORS Security**
-- Origin validation
-- Credential handling
-- Preflight requests
-
-### 4. **Data Validation**
-- Input sanitization
-- Type checking
-- Schema validation
-
-## 📈 Performance Optimizations
-
-### 1. **Runtime Performance**
-- Bun JavaScript runtime
-- TypeScript compilation
-- Memory management
-
-### 2. **API Performance**
-- Async processing
-- Connection pooling
-- Response caching
-
-### 3. **Data Pipeline**
-- Incremental processing
-- Partitioning strategies
-- Query optimization
-
-## 🧪 Testing Strategy
-
-### 1. **Unit Testing**
-- Individual function testing
-- Mock external dependencies
-- Edge case coverage
-
-### 2. **Integration Testing**
-- API endpoint testing
-- Service interaction testing
-- Database integration testing
-
-### 3. **End-to-End Testing**
-- Complete user flows
-- Browser automation
-- Real-world scenarios
-
-## 🔄 Development Workflow
-
-### 1. **Local Development**
-```bash
-bun install          # Install dependencies
-bun run dev         # Start development server
-bun test           # Run tests
-```
-
-### 2. **Code Quality**
-- TypeScript strict mode
-- ESLint configuration
-- Pre-commit hooks
-
-### 3. **Deployment Pipeline**
-- Automated testing
-- Build optimization
-- Environment management
-
-## 📊 Monitoring & Observability
-
-### 1. **Application Metrics**
-- Request/response times
-- Error rates
-- Resource usage
-
-### 2. **Data Quality**
-- Schema validation
-- Data completeness
-- Transformation accuracy
-
-### 3. **Business Metrics**
-- Event processing rates
-- User engagement
-- Geographic distribution
-
-This structure provides a solid foundation for a scalable, maintainable, and privacy-focused analytics platform. Each component has a clear responsibility and well-defined interfaces, making the codebase easy to understand and extend.
+This simplified architecture prioritizes **understanding and extensibility through clarity**. With just 5 core files and ~488 lines of code, the entire analytics stack is easy to read, modify, and extend in any direction you need.

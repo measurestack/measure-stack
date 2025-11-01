@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This guide covers all configuration options in `infrastructure/config.source`. After making changes, re-run the deployment as described in the [Quick Start Guide](./quick-start.md).
+This guide covers all configuration options in `deploy/config.source`. After making changes, re-run the deployment as described in the [Quick Start Guide](./quick-start.md).
 
 ## Essential Configuration
 
@@ -63,15 +63,6 @@ TIMEOUT="300"           # Request timeout in seconds
 REGION="europe-west1"   # GCP region for all resources
 ```
 
-### Rate Limiting
-
-```bash
-RATE_LIMIT_WINDOW_MS="60000"        # Rate limit window (1 minute)
-RATE_LIMIT_MAX_REQUESTS="100"       # Max requests per window
-RATE_LIMIT_SKIP_SUCCESS="false"     # Skip successful requests from rate limiting
-RATE_LIMIT_SKIP_FAILED="false"      # Skip failed requests from rate limiting
-```
-
 ## BigQuery Configuration
 
 ```bash
@@ -117,12 +108,12 @@ DBT_TARGET="prod"                   # DBT target environment
 
 ## After Configuration Changes
 
-After modifying `infrastructure/config.source`, redeploy the application:
+After modifying `deploy/config.source`, redeploy the application:
 
 ```bash
 # Redeploy the application
-./infrastructure/scripts/deploy_app.sh
+./deploy/deploy_app.sh
 
 # If you changed DBT settings, also redeploy the data pipeline
-./infrastructure/scripts/deploy_dbt.sh
+./deploy/deploy_dbt.sh
 ```

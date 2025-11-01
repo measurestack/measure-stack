@@ -21,7 +21,7 @@ cd measure-stack
 
 ## 2. Essential Configuration
 
-Edit `infrastructure/config.source` - **ONLY change these required settings**:
+Edit `deploy/config.source` - **ONLY change these required settings**:
 
 ```bash
 # REQUIRED: Your Google Cloud Project ID
@@ -39,7 +39,7 @@ All other settings can remain as defaults for now.
 ## 3. Deploy Application
 
 ```bash
-./infrastructure/scripts/deploy_app.sh
+./deploy/deploy_app.sh
 ```
 
 This deploys the tracking API and creates the BigQuery dataset. **Copy the tracking code printed at the end** - you'll need it for your website.
@@ -55,7 +55,7 @@ Add the generated tracking code to your website (e.g., via Google Tag Manager):
 ## 5. Deploy Data Pipeline
 
 ```bash
-./infrastructure/scripts/deploy_dbt.sh
+./deploy/deploy_dbt.sh
 ```
 
 This sets up automated data processing that runs daily.

@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Load unified configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../config.source"
+source "${SCRIPT_DIR}/config.source"
 
 echo "🚀 Deploying dbt job to Cloud Run..."
 
@@ -28,7 +28,7 @@ bq update --source /tmp/dataset_updated.json "$GCP_PROJECT_ID:$GCP_DATASET_ID"
 
 # Build and deploy
 echo "📦 Building Docker image..."
-cd "${SCRIPT_DIR}/../../data/dbt"
+cd "${SCRIPT_DIR}/../data/dbt"
 gcloud builds submit --tag "$DBT_IMAGE_NAME"
 
 echo "🏗️ Creating Cloud Run job..."

@@ -1,8 +1,0 @@
-docker run -it \
-  --env-file src/.env -p 3000:3000 \
-  -e GOOGLE_APPLICATION_CREDENTIALS="/app/application_default_credentials.json" \
-  -v ~/.config/gcloud/application_default_credentials.json:/app/application_default_credentials.json \
-  measure-bun-app /bin/sh
-
-Note, this will enter a shell for inspection. you would need to run `bun src/index.ts` yourself
-Note, this will copy the GCP credentials to the image and use it. also it tranfers the .env variables

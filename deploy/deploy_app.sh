@@ -4,12 +4,12 @@ set -euxo pipefail
 
 # Load unified configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../config.source"
+source "${SCRIPT_DIR}/config.source"
 
 { set +x; echo "🚀 Deploying $SERVICE_NAME to Cloud Run..."; set -x; }
 
 # Change to project root for build context
-cd "${SCRIPT_DIR}/../.."
+cd "${SCRIPT_DIR}/.."
 
 # Generate SDK before build
 { set +x; echo "📝 Generating measure.js from template..."; set -x; }
@@ -32,7 +32,7 @@ fi
 if ! bq show "$GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID" &>/dev/null; then
     bq mk --table \
         --location="$REGION" \
-        --schema="${SCRIPT_DIR}/../schemas/bq_table_schema.json" \
+        --schema="${SCRIPT_DIR}/bq_table_schema.json" \
         --time_partitioning_field=timestamp \
         --time_partitioning_type=DAY \
         "$GCP_PROJECT_ID:$GCP_DATASET_ID.$GCP_TABLE_ID"
@@ -62,14 +62,9 @@ GCP_FIRESTORE_DATABASE: "$GCP_FIRESTORE_DATABASE"
 CLIENT_ID_COOKIE_NAME: "$CLIENT_ID_COOKIE_NAME"
 HASH_COOKIE_NAME: "$HASH_COOKIE_NAME"
 COOKIE_DOMAIN: "$COOKIE_DOMAIN"
-DAILY_SALT: "$DAILY_SALT"
 GEO_ACCOUNT: "$GEO_ACCOUNT"
 GEO_KEY: "$GEO_KEY"
 CORS_ORIGIN: "$CORS_ORIGIN"
-RATE_LIMIT_WINDOW_MS: "$RATE_LIMIT_WINDOW_MS"
-RATE_LIMIT_MAX_REQUESTS: "$RATE_LIMIT_MAX_REQUESTS"
-RATE_LIMIT_SKIP_SUCCESS: "$RATE_LIMIT_SKIP_SUCCESS"
-RATE_LIMIT_SKIP_FAILED: "$RATE_LIMIT_SKIP_FAILED"
 EOF
 
 { set +x; echo "🏗️ Deploying to Cloud Run..."; set -x; }
