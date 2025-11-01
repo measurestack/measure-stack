@@ -1,6 +1,22 @@
 # Configuration Guide
 
-This guide covers all configuration options in `deploy/config.source`. After making changes, re-run the deployment as described in the [Quick Start Guide](./quick-start.md).
+This guide covers all configuration options in `deploy/config.source`.
+
+## Initial Setup
+
+If you haven't already, create your configuration file from the template:
+
+```bash
+cd deploy
+cp config.source.template config.source
+```
+
+**Important:**
+- `config.source` is your personal configuration (not tracked in git)
+- `config.source.template` is the template file (tracked in git)
+- Never commit `config.source` to git as it contains your project-specific settings
+
+After making changes to `config.source`, re-run the deployment as described in the [Quick Start Guide](./quick-start.md).
 
 ## Essential Configuration
 

@@ -1,9 +1,15 @@
 #!/bin/bash
 # Unified configuration for measure-js deployment scripts
+#
+# SETUP INSTRUCTIONS:
+# 1. Copy this file to config.source: cp config.source.template config.source
+# 2. Edit config.source and update all settings marked with #ADAPT!
+# 3. Never commit config.source to git (it's in .gitignore)
+#
 # You can adapt all variables but at least you must adapt the ones marked with ADAPT!
 
 # ========================= Core GCP Settings =========================
-GCP_PROJECT_ID="measure-test-deploy" #ADAPT!
+GCP_PROJECT_ID="your-project-id" #ADAPT!
 REGION="europe-west1" 
 GCP_DATASET_ID="measure_js"
 GCP_TABLE_ID="events"

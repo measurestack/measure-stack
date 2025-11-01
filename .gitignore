@@ -3,6 +3,7 @@
 .env.test
 **/gcp-key.json
 **/service-account.json
+deploy/config.source
 
 # Git-related
 .git

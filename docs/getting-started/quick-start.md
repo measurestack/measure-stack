@@ -21,6 +21,13 @@ cd measure-stack
 
 ## 2. Essential Configuration
 
+First, create your configuration file:
+
+```bash
+cd deploy
+cp config.source.template config.source
+```
+
 Edit `deploy/config.source` - **ONLY change these required settings**:
 
 ```bash

@@ -4,6 +4,17 @@ set -euxo pipefail
 
 # Load unified configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if config.source exists
+if [ ! -f "${SCRIPT_DIR}/config.source" ]; then
+    echo "❌ Error: config.source not found!"
+    echo "Please create it from the template:"
+    echo "  cd deploy"
+    echo "  cp config.source.template config.source"
+    echo "  # Then edit config.source with your settings"
+    exit 1
+fi
+
 source "${SCRIPT_DIR}/config.source"
 
 { set +x; echo "🚀 Deploying $SERVICE_NAME to Cloud Run..."; set -x; }
