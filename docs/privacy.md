@@ -1,88 +1,64 @@
-# Privacy and Analytics: Client IDs vs Server-Side Hashing
+# Privacy & GDPR Compliance
 
-## Why Client IDs Are Needed for Analytics
+MeasureStack supports two tracking modes to comply with EU regulations (GDPR, ePrivacy Directive).
 
-Client IDs (cookies) enable essential analytics capabilities that would be impossible without persistent user identification:
+## Cookie-Based Tracking (Requires Consent)
 
-### Session Metrics
-- **Session duration and depth**: Track how long users stay engaged and how many pages they view per session
-- **Session quality scoring**: Identify high-value sessions based on engagement patterns
-- **Bounce rate analysis**: Measure the percentage of single-page sessions to optimize content
+**Legal basis:** User consent (GDPR Art. 6(1)(a), ePrivacy Directive Art. 5(3))
 
-### User Journey Analysis
-- **Multi-touch attribution**: Understand which marketing channels contribute to conversions across multiple visits
-- **Funnel analysis**: Track user progression through conversion paths over time
-- **Cohort analysis**: Analyze user behavior changes and retention patterns
+When users grant consent, persistent cookies enable:
+- Session tracking across visits
+- Return visitor identification
+- Multi-visit funnel analysis
+- Cohort and retention metrics
 
-### Cross-Visit Correlations
-- **Return visitor identification**: Distinguish new vs. returning users for accurate growth metrics
-- **Campaign effectiveness**: Measure long-term impact of marketing campaigns across user sessions
-- **Personalization**: Deliver relevant content based on previous user interactions
+**Requirements:**
+- Obtain explicit consent before setting cookies
+- Allow users to withdraw consent
+- Document consent in privacy policy
 
-## Legal Framework: Cookies vs Server-Side Hashing
+## Cookieless Tracking (No Consent Required)
 
-### Cookies and Consent Requirements
+**Legal basis:** Legitimate interest (GDPR Art. 6(1)(f))
 
-In many jurisdictions, cookies require explicit user consent:
-- **GDPR/DSGVO**: Cookies storing personal identifiers require consent under Article 6(1)(a)
-- **ePrivacy Directive**: Cookies (except strictly necessary ones) require prior consent
-- **User control**: Users must be able to accept/reject cookies and withdraw consent
+Without consent, daily-rotated hashes provide privacy-friendly analytics:
 
-### Server-Side Hashing: A Privacy-Friendly Alternative
+**Hash generation:**
+```
+hash = SHA256(full_ip + user_agent + daily_salt)
+```
 
-Our implementation in [`eventProcessor.ts`](../src/services/tracking/eventProcessor.ts) and [`hashing.ts`](../src/utils/crypto/hashing.ts) creates privacy-compliant analytics:
+**Privacy mechanisms:**
+1. **Daily salt rotation** - Salt changes each day, making cross-day tracking impossible. Old salts are automatically deleted after 24 hours.
+2. **Full IP for hashing only** - Full IP is used only for hash generation (with daily salt), never stored. This provides stable same-day session identification while remaining privacy-preserving due to daily salt rotation.
+3. **IP truncation for storage** - Only truncated IP (last octet removed for IPv4, last 80 bits removed for IPv6) is stored in BigQuery for geolocation purposes
+4. **Server-side only** - Raw IP/user-agent never transmitted to client; salt never leaves server
+5. **No reverse engineering** - SHA-256 with daily rotating salt is cryptographically secure and one-way
 
-#### GDPR Article 6(1)(f) - Legitimate Interest
-Server-side hashes can rely on legitimate interest because:
-- **Purpose limitation**: Only used for analytics, not profiling or targeting
-- **Data minimization**: No personal identifiers stored or transmitted
-- **Technical necessity**: Essential for basic website functionality analytics
+**Limitations:**
+- Single-day sessions only (hash changes daily)
+- Cannot track returning visitors across days
+- No long-term user journey analysis
 
-#### Privacy-Preserving Design
+## Data Processing
 
-Our hashing implementation ensures privacy through several mechanisms:
+**What we store:**
+- Truncated IP addresses
+- User-agent strings
+- Page URLs and referrers
+- Event names and parameters
+- Country/city (from IP geolocation, optional)
 
-1. **Daily Salt Rotation**:
-   ```typescript
-   // From hashing.ts - salt changes daily and old salts are deleted
-   const dailySalt = await getDailySalt();
-   const combined = `${ip}${userAgent}${dailySalt}`;
-   return createHash('sha256').update(combined).digest('hex');
-   ```
+**What we don't store:**
+- Full IP addresses
+- Personal identifiable information (PII)
+- Cross-site tracking data
 
-2. **IP Truncation**: Only partial IP addresses are stored
+## Compliance Recommendations
 
-3. **Server-Side Processing**: Hashing happens server-side, so raw IP/User-Agent data never leaves the server
+1. **Privacy Policy** - Disclose both tracking modes in your privacy policy
+2. **Consent banner** - Implement cookie consent for EU visitors
+3. **Data retention** - Set appropriate retention periods (recommend 14 months for raw events)
+4. **Data processing agreements** - Document processor relationships if applicable
 
-4. **Temporal Limitation**: Daily salt rotation means hashes cannot be correlated across days
-
-## Technical Implementation
-
-### Event Processing Flow
-The [`eventProcessor.ts`](../src/services/tracking/eventProcessor.ts) implements a dual approach:
-- **With consent**: Uses persistent client ID cookies for full analytics capabilities
-- **Without consent**: Uses daily-rotated server-side hashes for basic analytics
-
-### Session Construction
-The analytics pipeline in [`event_blocks.sql`](../data/dbt/measure_js/models/staging/event_blocks.sql) and [`events_sessionated.sql`](../data/dbt/measure_js/models/staging/events_sessionated.sql) handles both identification methods:
-
-1. **Block Detection**: Groups events by 30-minute inactivity gaps
-2. **ID Harmonization**: Links events within blocks using either client IDs or hashes
-3. **Session Attribution**: Assigns traffic sources and campaign data to complete sessions
-
-### Privacy Benefits of Salted Hashing
-
-The daily salt rotation provides several privacy guarantees:
-- **No cross-day tracking**: Users cannot be identified across different days
-- **Collision resistance**: SHA-256 with salt prevents reverse engineering
-- **Automatic expiry**: Previous day's data becomes unlinkable when salt rotates
-- **GDPR compliance**: Meets data minimization and purpose limitation requirements
-
-## Best Practices
-
-1. **Transparent disclosure**: Clearly communicate both cookie and hash-based tracking in privacy notices
-2. **User choice**: Offer granular consent options for different tracking methods
-3. **Data retention**: Implement appropriate retention periods for analytics data
-4. **Regular audits**: Review and validate privacy compliance of analytics implementation
-
-This approach balances meaningful analytics insights with strong privacy protections, enabling businesses to understand user behavior while respecting privacy rights and regulatory requirements.
+**Note:** This is technical guidance, not legal advice. Consult legal counsel for compliance requirements specific to your jurisdiction and use case.
