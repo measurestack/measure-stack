@@ -32,6 +32,12 @@ code, pre, kbd {
   font-size: 0.85em;
 }
 
+/* Allow word break without space */
+wbr {
+  display: inline-block;
+  width: 0;
+}
+
 /* Hero section */
 .hero {
   text-align: center;
