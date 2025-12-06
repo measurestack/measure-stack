@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 350" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <!-- Gradient for first line (blue from logo) - dimmed -->
+    <linearGradient id="areaGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E88C7" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#1E88C7" stop-opacity="0.01"/>
+    </linearGradient>
+
+    <!-- Gradient for second line (green from logo) - dimmed -->
+    <linearGradient id="areaGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7CB342" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#7CB342" stop-opacity="0.01"/>
+    </linearGradient>
+
+    <!-- Masks to create gaps at dot positions -->
+    <mask id="blueMask">
+      <rect x="0" y="0" width="1400" height="350" fill="white"/>
+      <circle cx="200" cy="170" r="10" fill="black"/>
+      <circle cx="420" cy="70" r="10" fill="black"/>
+      <circle cx="640" cy="120" r="10" fill="black"/>
+      <circle cx="860" cy="175" r="10" fill="black"/>
+      <circle cx="1080" cy="210" r="10" fill="black"/>
+      <circle cx="1300" cy="235" r="10" fill="black"/>
+    </mask>
+
+    <mask id="greenMask">
+      <rect x="0" y="0" width="1400" height="350" fill="white"/>
+      <circle cx="200" cy="300" r="10" fill="black"/>
+      <circle cx="420" cy="280" r="10" fill="black"/>
+      <circle cx="640" cy="220" r="10" fill="black"/>
+      <circle cx="860" cy="120" r="10" fill="black"/>
+      <circle cx="1080" cy="145" r="10" fill="black"/>
+      <circle cx="1300" cy="135" r="10" fill="black"/>
+    </mask>
+  </defs>
+
+  <!--
+    Line 1 (blue): peaks at ~30% x (420), then descends to ~70% y (245) at end
+    Points: (0,280) -> (200,170) -> (420,70) PEAK -> (640,120) -> (860,175) -> (1080,210) -> (1300,235) -> (1400,245)
+
+    Line 2 (green): slow start, accelerates to peak at ~60% x, smoother descent with higher point 5
+    Points: (0,320) -> (200,300) -> (420,280) -> (640,220) -> (860,120) PEAK -> (1080,145) higher -> (1300,135) slight rise -> (1400,140)
+  -->
+
+  <!-- Area fill for Line 1 (blue) -->
+  <path
+    d="M0,280
+       C67,280 133,210 200,170
+       C267,130 353,70 420,70
+       C487,70 567,100 640,120
+       C713,140 787,160 860,175
+       C933,190 1007,200 1080,210
+       C1153,220 1227,230 1300,235
+       C1333,238 1367,242 1400,245
+       L1400,350 L0,350 Z"
+    fill="url(#areaGradient1)"/>
+
+  <!-- Area fill for Line 2 (green) -->
+  <path
+    d="M0,320
+       C67,320 133,310 200,300
+       C267,290 353,285 420,280
+       C487,275 567,255 640,220
+       C713,185 787,140 860,120
+       C933,100 1007,130 1080,145
+       C1153,155 1227,140 1300,135
+       C1333,133 1367,137 1400,140
+       L1400,350 L0,350 Z"
+    fill="url(#areaGradient2)"/>
+
+  <!-- Line 1 (blue) - full path with mask for gaps - dimmed -->
+  <path
+    d="M0,280
+       C67,280 133,210 200,170
+       C267,130 353,70 420,70
+       C487,70 567,100 640,120
+       C713,140 787,160 860,175
+       C933,190 1007,200 1080,210
+       C1153,220 1227,230 1300,235
+       C1333,238 1367,242 1400,245"
+    stroke="#1E88C7"
+    stroke-opacity="0.25"
+    stroke-width="2.5"
+    fill="none"
+    stroke-linecap="round"
+    mask="url(#blueMask)"/>
+
+  <!-- Dots for Line 1 (blue) - dimmed -->
+  <g fill="#1E88C7" fill-opacity="0.3">
+    <circle cx="200" cy="170" r="5"/>
+    <circle cx="420" cy="70" r="5"/>
+    <circle cx="640" cy="120" r="5"/>
+    <circle cx="860" cy="175" r="5"/>
+    <circle cx="1080" cy="210" r="5"/>
+    <circle cx="1300" cy="235" r="5"/>
+  </g>
+
+  <!-- Line 2 (green) - full path with mask for gaps - dimmed -->
+  <path
+    d="M0,320
+       C67,320 133,310 200,300
+       C267,290 353,285 420,280
+       C487,275 567,255 640,220
+       C713,185 787,140 860,120
+       C933,100 1007,130 1080,145
+       C1153,155 1227,140 1300,135
+       C1333,133 1367,137 1400,140"
+    stroke="#7CB342"
+    stroke-opacity="0.22"
+    stroke-width="2.5"
+    fill="none"
+    stroke-linecap="round"
+    mask="url(#greenMask)"/>
+
+  <!-- Dots for Line 2 (green) - dimmed -->
+  <g fill="#7CB342" fill-opacity="0.28">
+    <circle cx="200" cy="300" r="5"/>
+    <circle cx="420" cy="280" r="5"/>
+    <circle cx="640" cy="220" r="5"/>
+    <circle cx="860" cy="120" r="5"/>
+    <circle cx="1080" cy="145" r="5"/>
+    <circle cx="1300" cy="135" r="5"/>
+  </g>
+
+  <!-- Bottom border line (matches hr style) -->
+  <line x1="0" y1="349" x2="1400" y2="349" stroke="#707070" stroke-opacity="0.2" stroke-width="1"/>
+</svg>

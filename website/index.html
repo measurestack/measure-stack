@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>measureStack - Privacy-first web analytics platform</title>
+  <meta name="description" content="Privacy-first web analytics platform. Self-hosted, simple, and extensible. ~500 lines of TypeScript, every event in BigQuery.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="container">
+    <nav>
+      <ul>
+        <li><img src="assets/logo.png" alt="measureStack" class="logo"><strong>measureStack</strong></li>
+      </ul>
+      <ul>
+        <li><a href="#features">Why</a></li>
+        <li><a href="#quickstart">Quick Start</a></li>
+        <li><a href="https://github.com/measurestack/measure-stack" target="_blank">GitHub</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="container">
+    <!-- Hero Section -->
+    <section class="hero">
+      <hgroup>
+        <h1>
+          <span class="title-block title-top">measureStack</span>
+          <span class="title-block title-bottom">sovereign analytics stack</span>
+        </h1>
+        <p>Full-control, simple, and extensible.</p>
+      </hgroup>
+      <div class="badges">
+        <span class="badge">Privacy-focussed</span>
+        <span class="badge">Raw Access</span>
+        <span class="badge">Scale to zero</span>
+        <span class="badge">MIT License</span>
+      </div>
+      <div class="cta-group">
+        <a href="#quickstart" role="button">Get Started</a>
+        <a href="https://github.com/measurestack/measure-stack" role="button" class="secondary">View Source</a>
+      </div>
+    </section>
+
+    <!-- Why Section -->
+    <section class="why">
+      <p class="lead">Most analytics tools are black boxes. You can't see how events are processed, can't access raw data, can't adapt the schema. measureStack is different: <strong>understand the entire codebase, query every event, change anything</strong>.</p>
+    </section>
+
+    <!-- Features Grid -->
+    <section id="features">
+      <h2>Built for Data Professionals</h2>
+      <div class="grid">
+        <article>
+          <h3>Understand Every Line</h3>
+          <p>~1kB tracker size, 500 lines server code, 10 dbt models. No magic, no abstraction layers. Understand how events flow from browser to BigQuery in 30 minutes.</p>
+        </article>
+        <article>
+          <h3>Query Raw Events</h3>
+          <p>Every event lands in BigQuery as-is. No pre-aggregation, no sampling, no waiting for exports. Be clear what really happens.</p>
+        </article>
+        <article>
+          <h3>Adapt, No Limits</h3>
+          <p>Need a custom field? Add it. Different enrichment logic? Change it. The code is simple enough to modify confidently.</p>
+        </article>
+        <article>
+          <h3>Your Infrastructure</h3>
+          <p>Runs on your GCP project. Data never leaves your environment. Full control over retention, access, and compliance.</p>
+        </article>
+        <article>
+          <h3>Privacy That Makes Sense</h3>
+          <p>Daily-rotating hashes for cookieless tracking. IP truncation. You can explain exactly how it works because you can read it.</p>
+        </article>
+        <article>
+          <h3>dbt-Native Pipeline</h3>
+          <p>Raw events transform via dbt models into session and user tables. Add your own models, join with other data sources, build custom metrics.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section id="quickstart">
+      <h2>Quick Start</h2>
+      <p>Prerequisites: <a href="https://cloud.google.com/sdk/docs/install">Google Cloud CLI</a> installed and authenticated.</p>
+
+      <h3>1. Clone & Configure</h3>
+      <pre><code>git clone https://github.com/measurestack/measure-stack.git
+cd measure-stack/deploy
+cp config.source.template config.source
+# Edit config.source with your GCP project ID and domain</code></pre>
+
+      <h3>2. Deploy</h3>
+      <pre><code>./deploy_app.sh      # Deploy tracking API
+./deploy_dbt.sh      # Deploy analytics pipeline</code></pre>
+
+      <h3>3. Add to Your Site</h3>
+      <pre><code>&lt;script src="https://your-tracker-url/measure.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  _measure.pageview();
+  _measure.event('signup_click', { plan: 'pro' });
+&lt;/script&gt;</code></pre>
+
+      <h3>4. Query Your Data</h3>
+      <pre><code>-- Your events, your SQL, no restrictions
+SELECT
+  DATE(timestamp) as day,
+  event_name,
+  COUNT(*) as events,
+  COUNT(DISTINCT hash) as unique_visitors
+FROM `your-project.measure_js.events`
+WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+GROUP BY 1, 2
+ORDER BY 1 DESC, 3 DESC;</code></pre>
+    </section>
+
+    <!-- How It Works -->
+    <section id="architecture">
+      <h2>Architecture</h2>
+      <figure class="architecture-diagram">
+        <img src="assets/architecture.svg" alt="measureStack Architecture: Browser sends events to Hono API, stored in BigQuery (raw events + analytics tables via dbt), consumed by BI tools.">
+      </figure>
+      <p class="architecture-note">Event hits API, gets enriched (device, location), stored in BigQuery. That's it. No queues, no complex pipelines, no hidden processing.</p>
+    </section>
+
+    <!-- The Simplicity Argument -->
+    <section id="simplicity">
+      <h2>Why Simplicity Matters</h2>
+      <div class="simplicity-content">
+        <p>When something breaks at 2am, you need to understand what's happening. When stakeholders ask "how is this metric calculated?", you need a real answer. When regulations change, you need to adapt fast.</p>
+        <p>With ~500 lines of code, you can:</p>
+        <ul>
+          <li><strong>Debug in minutes</strong> - grep the codebase, find the issue, fix it</li>
+          <li><strong>Explain your data</strong> - show exactly how each field is computed</li>
+          <li><strong>Adapt to requirements</strong> - add fields, change logic, no vendor tickets</li>
+          <li><strong>Onboard teammates</strong> - they can read the entire system in a day</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section id="privacy" class="bordered-section">
+      <h2>Privacy Model</h2>
+      <div class="grid privacy-grid">
+        <article>
+          <h3>With Consent</h3>
+          <ul>
+            <li>Persistent client ID cookie</li>
+            <li>Cross-session tracking</li>
+            <li>Return visitor analysis</li>
+          </ul>
+        </article>
+        <article>
+          <h3>Without Consent</h3>
+          <ul>
+            <li>Daily-rotating SHA-256 hash</li>
+            <li>Same-day sessions only</li>
+            <li>No cookies, GDPR-ready</li>
+          </ul>
+        </article>
+      </div>
+      <p class="privacy-note"><small>Hash = SHA256(IP + UserAgent + DailySalt). Salt rotates and deletes after 24h. IP truncated before storage. All in <code>src/services/salt.ts</code> - read it yourself.</small></p>
+    </section>
+
+    <!-- Comparison -->
+    <section id="comparison">
+      <h2>Comparison</h2>
+      <figure>
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>measureStack</th>
+              <th>Google Analytics</th>
+              <th>Plausible / Matomo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Can you read the code?</td>
+              <td>Yes, ~500 lines</td>
+              <td>No</td>
+              <td>Yes, 100k+ lines</td>
+            </tr>
+            <tr>
+              <td>Raw event SQL access</td>
+              <td>Direct BigQuery</td>
+              <td>Export only</td>
+              <td>Limited / Plugin</td>
+            </tr>
+            <tr>
+              <td>Modify tracking logic</td>
+              <td>Edit source</td>
+              <td>Not possible</td>
+              <td>Complex plugins</td>
+            </tr>
+            <tr>
+              <td>Data location</td>
+              <td>Your GCP project</td>
+              <td>Google servers</td>
+              <td>Self-host or SaaS</td>
+            </tr>
+            <tr>
+              <td>Setup time</td>
+              <td>minutes</td>
+              <td>mins (SaaS only)</td>
+              <td>days (self-host) / mins (SaaS)</td>
+            </tr>
+            <tr>
+              <td>Pricing</td>
+              <td>Cloud costs (~$5-20/mo) with scale to zero</td>
+              <td>Free (you are the product)</td>
+              <td>from $9+/mo or cloud costs (self-host)</td>
+            </tr>
+          </tbody>
+        </table>
+      </figure>
+    </section>
+
+    <!-- Tech Stack -->
+    <section id="stack">
+      <h2>Stack</h2>
+      <p>
+        <strong>Runtime:</strong> Bun &nbsp;|&nbsp;
+        <strong>Framework:</strong> Hono &nbsp;|&nbsp;
+        <strong>Storage:</strong> BigQuery &nbsp;|&nbsp;
+        <strong>Transforms:</strong> dbt &nbsp;|&nbsp;
+        <strong>Deploy:</strong> Cloud Run
+      </p>
+      <p class="stack-note">All standard tools. If you've used any of these, you already know half the stack.</p>
+    </section>
+
+    <!-- CTA -->
+    <section class="final-cta">
+      <h2>Read the code. Deploy in 5 minutes. Own your data.</h2>
+      <a href="https://github.com/measurestack/measure-stack" role="button">View on GitHub</a>
+    </section>
+  </main>
+
+  <footer class="container">
+    <p>
+      <small>
+        <a href="https://github.com/measurestack/measure-stack">GitHub</a> &nbsp;|&nbsp;
+        <a href="https://github.com/measurestack/measure-stack/blob/main/docs/getting-started/quick-start.md">Docs</a> &nbsp;|&nbsp;
+        <a href="https://github.com/measurestack/measure-stack/blob/main/LICENSE">MIT License</a>
+      </small>
+    </p>
+    <p><small>measureStack v0.3.0</small></p>
+  </footer>
+</body>
+</html>
