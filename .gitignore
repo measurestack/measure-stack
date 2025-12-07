@@ -39,3 +39,5 @@ app.log
 
 # builds
 dist/
+# Claude project files
+CLAUDE.md
